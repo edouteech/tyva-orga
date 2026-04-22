@@ -1,0 +1,136 @@
+/* Styles pour l'affichage du contenu Quill */
+.quill-content ol {
+  list-style-type: none;
+  counter-reset: item;
+  padding-left: 0;
+}
+
+.quill-content ol li[data-list="ordered"] {
+  counter-increment: item;
+  margin-bottom: 0.5rem;
+  position: relative;
+  padding-left: 2rem;
+}
+
+.quill-content ol li[data-list="ordered"]:before {
+  content: counter(item) ".";
+  position: absolute;
+  left: 0;
+  font-weight: bold;
+  color: #374151;
+}
+
+.quill-content ol li[data-list="bullet"] {
+  margin-bottom: 0.5rem;
+  position: relative;
+  padding-left: 2rem;
+}
+
+.quill-content ol li[data-list="bullet"]:before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  font-weight: bold;
+  color: #374151;
+}
+
+.quill-content .ql-ui {
+  display: none;
+}
+
+.quill-content p {
+  margin-bottom: 1rem;
+}
+
+.quill-content strong {
+  font-weight: 600;
+}
+
+.quill-content em {
+  font-style: italic;
+}
+
+.quill-content a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.quill-content a:hover {
+  color: #1d4ed8;
+}
+
+/* Styles pour les listes ul (au cas où) */
+.quill-content ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.quill-content ul li {
+  margin-bottom: 0.5rem;
+  position: relative;
+  padding-left: 2rem;
+}
+
+.quill-content ul li:before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  font-weight: bold;
+  color: #374151;
+}
+
+/* Styles pour les titres */
+.quill-content h1,
+.quill-content h2,
+.quill-content h3,
+.quill-content h4,
+.quill-content h5,
+.quill-content h6 {
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #111827;
+}
+
+.quill-content h1 {
+  font-size: 1.875rem;
+}
+
+.quill-content h2 {
+  font-size: 1.5rem;
+}
+
+.quill-content h3 {
+  font-size: 1.25rem;
+}
+
+/* Styles pour les citations */
+.quill-content blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: #6b7280;
+}
+
+/* Styles pour le code */
+.quill-content code {
+  background-color: #f3f4f6;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-family: "Courier New", monospace;
+  font-size: 0.875rem;
+}
+
+.quill-content pre {
+  background-color: #f3f4f6;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.quill-content pre code {
+  background-color: transparent;
+  padding: 0;
+}

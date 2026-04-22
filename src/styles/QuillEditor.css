@@ -1,0 +1,49 @@
+.quill-editor {
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.quill-editor .ql-toolbar {
+  border-bottom: 1px solid #d1d5db;
+  background-color: #f9fafb;
+}
+
+.quill-editor .ql-container {
+  border: none;
+  font-size: 14px;
+}
+
+.quill-editor .ql-editor {
+  min-height: 120px;
+  padding: 12px;
+}
+
+.quill-editor .ql-editor.ql-blank::before {
+  color: #9ca3af;
+  font-style: normal;
+}
+
+.quill-editor .ql-toolbar .ql-stroke {
+  stroke: #6b7280;
+}
+
+.quill-editor .ql-toolbar .ql-fill {
+  fill: #6b7280;
+}
+
+.quill-editor .ql-toolbar button:hover {
+  color: #374151;
+}
+
+.quill-editor .ql-toolbar button.ql-active {
+  color: #2563eb;
+}
+
+.quill-editor .ql-toolbar button.ql-active .ql-stroke {
+  stroke: #2563eb;
+}
+
+.quill-editor .ql-toolbar button.ql-active .ql-fill {
+  fill: #2563eb;
+}

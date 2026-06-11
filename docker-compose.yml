@@ -1,0 +1,21 @@
+services:
+  front_orga_prod:
+    build:
+      context: .
+    container_name: tyva_front_orga_prod
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontorga-prod.rule=Host(`orga.tyvaevents.com`)"
+      - "traefik.http.routers.frontorga-prod.entrypoints=websecure"
+      - "traefik.http.routers.frontorga-prod.tls.certresolver=le"
+      - "traefik.http.services.frontorga-prod.loadbalancer.server.port=80"
+      - "traefik.http.routers.frontorga-prod-http.rule=Host(`orga.tyvaevents.com`)"
+      - "traefik.http.routers.frontorga-prod-http.entrypoints=web"
+      - "traefik.http.routers.frontorga-prod-http.middlewares=redirect-to-https"
+    networks:
+      - web
+
+networks:
+  web:
+    external: true

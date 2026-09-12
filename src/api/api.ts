@@ -74,6 +74,11 @@ import type {
   ParkingTicketRule,
   CreateParkingTicketRuleData,
   UpdateParkingTicketRuleData,
+  // Invitation types
+  Invitation,
+  CreateInstantInvitationData,
+  CreatePreValidationInvitationData,
+  CreateBatchInvitationData,
 } from "../lib/types";
 import type {
   DeliveryPoint,
@@ -2606,6 +2611,172 @@ export const parkingTicketRulesAPI = {
       throw new Error(
         response.data.message ||
           "Impossible de basculer la visibilité de la règle",
+      );
+    }
+  },
+};
+
+// Service API pour les invitations
+export const invitationsAPI = {
+  // Récupérer la liste des invitations
+  getAll: async (params?: {
+    event_id?: number;
+    type?: "instant" | "pre_validation";
+    status?: string;
+    batch_designation?: string;
+    search?: string;
+    sort_by?: string;
+    sort_order?: "asc" | "desc";
+  }): Promise<Invitation[]> => {
+    const response = await api.get<ApiResponse<Invitation[]>>("/invitations", {
+      params,
+    });
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de récupérer les invitations",
+      );
+    }
+  },
+
+  // Récupérer une invitation par ID
+  getById: async (id: number): Promise<Invitation> => {
+    const response = await api.get<ApiResponse<Invitation>>(`/invitations/${id}`);
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de récupérer l'invitation",
+      );
+    }
+  },
+
+  // Créer une invitation instantanée
+  createInstant: async (
+    data: CreateInstantInvitationData,
+  ): Promise<Invitation> => {
+    const response = await api.post<ApiResponse<Invitation>>(
+      "/invitations/instant",
+      data,
+    );
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de créer l'invitation instantanée",
+      );
+    }
+  },
+
+  // Créer une invitation avec pré-validation
+  createPreValidation: async (
+    data: CreatePreValidationInvitationData,
+  ): Promise<Invitation> => {
+    const response = await api.post<ApiResponse<Invitation>>(
+      "/invitations/pre-validation",
+      data,
+    );
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message ||
+          "Impossible de créer l'invitation avec pré-validation",
+      );
+    }
+  },
+
+  // Créer des invitations en lot
+  createBatch: async (
+    data: CreateBatchInvitationData,
+  ): Promise<{
+    invitations: Invitation[];
+    batch_designation: string;
+    quantity: number;
+  }> => {
+    const response = await api.post<ApiResponse<{
+      invitations: Invitation[];
+      batch_designation: string;
+      quantity: number;
+    }>>("/invitations/batch", data);
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de créer les invitations en lot",
+      );
+    }
+  },
+
+  // Télécharger les invitations en lot (ZIP)
+  downloadBatch: async (batchDesignation: string, eventId: number): Promise<Blob> => {
+    const response = await api.get("/invitations/download-batch", {
+      params: {
+        batch_designation: batchDesignation,
+        event_id: eventId,
+      },
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  // Renvoyer l'email de pré-validation
+  resendPreValidation: async (id: number): Promise<Invitation> => {
+    const response = await api.post<ApiResponse<Invitation>>(
+      `/invitations/${id}/resend-pre-validation`,
+    );
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de renvoyer l'email de pré-validation",
+      );
+    }
+  },
+
+  // Renvoyer le ticket par email
+  resendTicket: async (id: number): Promise<Invitation> => {
+    const response = await api.post<ApiResponse<Invitation>>(
+      `/invitations/${id}/resend-ticket`,
+    );
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de renvoyer le ticket",
+      );
+    }
+  },
+
+  // Télécharger le ticket (PDF)
+  downloadTicket: async (id: number): Promise<Blob> => {
+    const response = await api.get(`/invitations/${id}/download-ticket`, {
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  // Supprimer une invitation
+  delete: async (id: number): Promise<void> => {
+    const response = await api.delete<ApiResponse<void>>(`/invitations/${id}`);
+    if (!response.data.success) {
+      throw new Error(
+        response.data.message || "Impossible de supprimer l'invitation",
+      );
+    }
+  },
+
+  // Confirmer une invitation (route publique)
+  confirm: async (token: string): Promise<Invitation> => {
+    const response = await api.get<ApiResponse<Invitation>>(
+      `/invitations/confirm/${token}`,
+    );
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de confirmer l'invitation",
       );
     }
   },

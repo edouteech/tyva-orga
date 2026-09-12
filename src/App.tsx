@@ -12,6 +12,7 @@ import EventManagementLayout from "./components/EventManagementLayout";
 import Login from "./pages/auth/login";
 import EventDashboard from "./pages/event-management/dashboard/index";
 import EventUsersIndex from "./pages/event-management/users";
+import Invitations from "./pages/event-management/invitations/index";
 import { eventsAPI } from "./api";
 import {
   useAppDispatch,
@@ -373,6 +374,16 @@ function App() {
             <ProtectedRoute>
               <EventManagementLayout>
                 <EventUsersIndex />
+              </EventManagementLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/gestion-evenement/:eventId/invitations"
+          element={
+            <ProtectedRoute>
+              <EventManagementLayout>
+                <Invitations />
               </EventManagementLayout>
             </ProtectedRoute>
           }

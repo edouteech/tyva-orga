@@ -79,6 +79,8 @@ import type {
   CreateInstantInvitationData,
   CreatePreValidationInvitationData,
   CreateBatchInvitationData,
+  ResendInvitationNotificationsData,
+  ResendInvitationNotificationsResponse,
 } from "../lib/types";
 import type {
   DeliveryPoint,
@@ -2733,6 +2735,18 @@ export const invitationsAPI = {
         response.data.message || "Impossible de renvoyer l'email de pré-validation",
       );
     }
+  },
+
+  // Renvoyer les notifications (Email / WhatsApp)
+  resendNotifications: async (
+    id: number,
+    data: ResendInvitationNotificationsData,
+  ): Promise<ApiResponse<ResendInvitationNotificationsResponse>> => {
+    const response = await api.post<ApiResponse<ResendInvitationNotificationsResponse>>(
+      `/invitations/${id}/resend-notifications`,
+      data,
+    );
+    return response.data;
   },
 
   // Renvoyer le ticket par email

@@ -906,8 +906,9 @@ export interface Invitation {
   first_name: string | null;
   last_name: string | null;
   email: string | null;
+  phone: string | null;
   batch_designation: string | null;
-  status: "pending_confirmation" | "confirmed" | "generated" | "sent";
+  status: "pending_confirmation" | "confirmed" | "generated" | "sent" | "rejected";
   confirmed_at: string | null;
   generated_at: string | null;
   sent_at: string | null;
@@ -927,6 +928,8 @@ export interface CreateInstantInvitationData {
   first_name: string;
   last_name: string;
   email: string;
+  phone?: string;
+  channels?: ("mail" | "whatsapp")[];
 }
 
 export interface CreatePreValidationInvitationData {
@@ -935,6 +938,7 @@ export interface CreatePreValidationInvitationData {
   first_name: string;
   last_name: string;
   email: string;
+  phone?: string;
 }
 
 export interface CreateBatchInvitationData {
@@ -942,4 +946,18 @@ export interface CreateBatchInvitationData {
   ticket_id?: number;
   quantity: number;
   batch_designation: string;
+}
+
+export interface ResendInvitationNotificationsData {
+  channels: ("mail" | "whatsapp")[];
+  email?: string;
+  phone?: string;
+}
+
+export interface ResendInvitationNotificationsResponse {
+  invitation_number: string;
+  results: {
+    mail?: { sent: boolean; to: string; error?: string };
+    whatsapp?: { sent: boolean; to: string; error?: string };
+  };
 }

@@ -939,6 +939,7 @@ export interface CreatePreValidationInvitationData {
   last_name: string;
   email: string;
   phone?: string;
+  channels?: ("mail" | "whatsapp")[];
 }
 
 export interface CreateBatchInvitationData {

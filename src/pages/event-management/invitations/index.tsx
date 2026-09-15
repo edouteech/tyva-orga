@@ -157,7 +157,9 @@ export default function Invitations() {
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
+        phone: formData.phone || undefined,
         ticket_id: formData.ticket_id ? parseInt(formData.ticket_id) : undefined,
+        channels: selectedInstantChannels,
       });
 
       setShowPreValidationModal(false);
@@ -230,6 +232,7 @@ export default function Invitations() {
           const firstName = normalizedRow.first_name || normalizedRow.prenom || normalizedRow.prénom;
           const lastName = normalizedRow.last_name || normalizedRow.nom;
           const email = normalizedRow.email;
+          const phone = normalizedRow.phone || normalizedRow.telephone || normalizedRow.téléphone;
           const ticketId = normalizedRow.ticket_id;
 
           if (!firstName || !lastName || !email) {
@@ -239,6 +242,7 @@ export default function Invitations() {
               first_name: firstName,
               last_name: lastName,
               email: email,
+              phone: phone || "",
               ticket_id: ticketId || formData.ticket_id,
             });
           }
@@ -273,7 +277,9 @@ export default function Invitations() {
           first_name: data.first_name,
           last_name: data.last_name,
           email: data.email,
+          phone: data.phone,
           ticket_id: data.ticket_id ? parseInt(data.ticket_id) : ticketId,
+          channels: selectedInstantChannels,
         });
       }
 
@@ -308,7 +314,9 @@ export default function Invitations() {
           first_name: data.first_name,
           last_name: data.last_name,
           email: data.email,
+          phone: data.phone,
           ticket_id: data.ticket_id ? parseInt(data.ticket_id) : ticketId,
+          channels: selectedInstantChannels,
         });
       }
 
@@ -333,6 +341,7 @@ export default function Invitations() {
         nom: "Doe",
         prenom: "John",
         email: "john.doe@example.com",
+        telephone: "+229 01 00 00 00 00",
       },
     ];
 
@@ -943,6 +952,67 @@ export default function Invitations() {
                       </label>
                     </div>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Canaux d'envoi</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedInstantChannels((prev) =>
+                            prev.includes("mail")
+                              ? prev.filter((c) => c !== "mail")
+                              : [...prev, "mail"]
+                          )
+                        }
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
+                          selectedInstantChannels.includes("mail")
+                            ? "border-green-600 bg-green-50 text-green-700"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                            selectedInstantChannels.includes("mail")
+                              ? "border-green-600 bg-green-600 text-white"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          {selectedInstantChannels.includes("mail") && <span className="text-xs">✓</span>}
+                        </div>
+                        <Mail className={`w-4 h-4 ${selectedInstantChannels.includes("mail") ? "text-green-600" : ""}`} />
+                        <span>Email</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedInstantChannels((prev) =>
+                            prev.includes("whatsapp")
+                              ? prev.filter((c) => c !== "whatsapp")
+                              : [...prev, "whatsapp"]
+                          )
+                        }
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
+                          selectedInstantChannels.includes("whatsapp")
+                            ? "border-green-600 bg-green-50 text-green-700"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                            selectedInstantChannels.includes("whatsapp")
+                              ? "border-green-600 bg-green-600 text-white"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          {selectedInstantChannels.includes("whatsapp") && <span className="text-xs">✓</span>}
+                        </div>
+                        <MessageSquare className="w-4 h-4 text-green-600" />
+                        <span>WhatsApp</span>
+                      </button>
+                    </div>
+                  </div>
                   {importErrors.length > 0 && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                       <ul className="list-disc list-inside text-sm">
@@ -1245,6 +1315,76 @@ export default function Invitations() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#36CC76] focus:border-transparent"
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="ex: +229 97 00 00 00"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#36CC76] focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Canaux d'envoi</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedInstantChannels((prev) =>
+                            prev.includes("mail")
+                              ? prev.filter((c) => c !== "mail")
+                              : [...prev, "mail"]
+                          )
+                        }
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
+                          selectedInstantChannels.includes("mail")
+                            ? "border-green-600 bg-green-50 text-green-700"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                            selectedInstantChannels.includes("mail")
+                              ? "border-green-600 bg-green-600 text-white"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          {selectedInstantChannels.includes("mail") && <span className="text-xs">✓</span>}
+                        </div>
+                        <Mail className={`w-4 h-4 ${selectedInstantChannels.includes("mail") ? "text-green-600" : ""}`} />
+                        <span>Email</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedInstantChannels((prev) =>
+                            prev.includes("whatsapp")
+                              ? prev.filter((c) => c !== "whatsapp")
+                              : [...prev, "whatsapp"]
+                          )
+                        }
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
+                          selectedInstantChannels.includes("whatsapp")
+                            ? "border-green-600 bg-green-50 text-green-700"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                            selectedInstantChannels.includes("whatsapp")
+                              ? "border-green-600 bg-green-600 text-white"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          {selectedInstantChannels.includes("whatsapp") && <span className="text-xs">✓</span>}
+                        </div>
+                        <MessageSquare className="w-4 h-4 text-green-600" />
+                        <span>WhatsApp</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex gap-3 mt-6">
                   <button
@@ -1256,7 +1396,7 @@ export default function Invitations() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isCreatingPreValidation}
+                    disabled={isCreatingPreValidation || !formData.ticket_id}
                     className="flex-1 px-4 py-2 bg-[#4A94E3] text-white rounded-lg hover:bg-[#023C40] transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isCreatingPreValidation ? (
@@ -1321,6 +1461,67 @@ export default function Invitations() {
                           Format: .xlsx ou .xls
                         </span>
                       </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Canaux d'envoi</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedInstantChannels((prev) =>
+                            prev.includes("mail")
+                              ? prev.filter((c) => c !== "mail")
+                              : [...prev, "mail"]
+                          )
+                        }
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
+                          selectedInstantChannels.includes("mail")
+                            ? "border-green-600 bg-green-50 text-green-700"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                            selectedInstantChannels.includes("mail")
+                              ? "border-green-600 bg-green-600 text-white"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          {selectedInstantChannels.includes("mail") && <span className="text-xs">✓</span>}
+                        </div>
+                        <Mail className={`w-4 h-4 ${selectedInstantChannels.includes("mail") ? "text-green-600" : ""}`} />
+                        <span>Email</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedInstantChannels((prev) =>
+                            prev.includes("whatsapp")
+                              ? prev.filter((c) => c !== "whatsapp")
+                              : [...prev, "whatsapp"]
+                          )
+                        }
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
+                          selectedInstantChannels.includes("whatsapp")
+                            ? "border-green-600 bg-green-50 text-green-700"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                            selectedInstantChannels.includes("whatsapp")
+                              ? "border-green-600 bg-green-600 text-white"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          {selectedInstantChannels.includes("whatsapp") && <span className="text-xs">✓</span>}
+                        </div>
+                        <MessageSquare className="w-4 h-4 text-green-600" />
+                        <span>WhatsApp</span>
+                      </button>
                     </div>
                   </div>
                   {importErrors.length > 0 && (

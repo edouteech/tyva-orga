@@ -18,7 +18,6 @@ import {
   FileText,
   X,
   FileSpreadsheet,
-  MessageSquare,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { ResendInvitationModal } from "./ResendInvitationModal";

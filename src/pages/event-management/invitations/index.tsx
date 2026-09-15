@@ -53,10 +53,6 @@ export default function Invitations() {
     isLoading: false,
   });
 
-  const [selectedInstantChannels, setSelectedInstantChannels] = useState<("mail" | "whatsapp")[]>([
-    "mail",
-    "whatsapp",
-  ]);
   const [resendModal, setResendModal] = useState<{
     isOpen: boolean;
     invitation: Invitation | null;
@@ -132,12 +128,10 @@ export default function Invitations() {
         email: formData.email,
         phone: formData.phone,
         ticket_id: formData.ticket_id ? parseInt(formData.ticket_id) : undefined,
-        channels: selectedInstantChannels,
       });
 
       setShowCreateModal(false);
       setFormData({ first_name: "", last_name: "", email: "", phone: "", ticket_id: "" });
-      setSelectedInstantChannels(["mail", "whatsapp"]);
       setActiveTab("instant");
       await loadInvitations();
     } catch (err) {
@@ -159,7 +153,6 @@ export default function Invitations() {
         email: formData.email,
         phone: formData.phone || undefined,
         ticket_id: formData.ticket_id ? parseInt(formData.ticket_id) : undefined,
-        channels: selectedInstantChannels,
       });
 
       setShowPreValidationModal(false);
@@ -279,7 +272,6 @@ export default function Invitations() {
           email: data.email,
           phone: data.phone,
           ticket_id: data.ticket_id ? parseInt(data.ticket_id) : ticketId,
-          channels: selectedInstantChannels,
         });
       }
 
@@ -316,7 +308,6 @@ export default function Invitations() {
           email: data.email,
           phone: data.phone,
           ticket_id: data.ticket_id ? parseInt(data.ticket_id) : ticketId,
-          channels: selectedInstantChannels,
         });
       }
 
@@ -952,67 +943,6 @@ export default function Invitations() {
                       </label>
                     </div>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Canaux d'envoi</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedInstantChannels((prev) =>
-                            prev.includes("mail")
-                              ? prev.filter((c) => c !== "mail")
-                              : [...prev, "mail"]
-                          )
-                        }
-                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
-                          selectedInstantChannels.includes("mail")
-                            ? "border-green-600 bg-green-50 text-green-700"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                            selectedInstantChannels.includes("mail")
-                              ? "border-green-600 bg-green-600 text-white"
-                              : "border-gray-300"
-                          }`}
-                        >
-                          {selectedInstantChannels.includes("mail") && <span className="text-xs">✓</span>}
-                        </div>
-                        <Mail className={`w-4 h-4 ${selectedInstantChannels.includes("mail") ? "text-green-600" : ""}`} />
-                        <span>Email</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedInstantChannels((prev) =>
-                            prev.includes("whatsapp")
-                              ? prev.filter((c) => c !== "whatsapp")
-                              : [...prev, "whatsapp"]
-                          )
-                        }
-                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
-                          selectedInstantChannels.includes("whatsapp")
-                            ? "border-green-600 bg-green-50 text-green-700"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                            selectedInstantChannels.includes("whatsapp")
-                              ? "border-green-600 bg-green-600 text-white"
-                              : "border-gray-300"
-                          }`}
-                        >
-                          {selectedInstantChannels.includes("whatsapp") && <span className="text-xs">✓</span>}
-                        </div>
-                        <MessageSquare className="w-4 h-4 text-green-600" />
-                        <span>WhatsApp</span>
-                      </button>
-                    </div>
-                  </div>
                   {importErrors.length > 0 && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                       <ul className="list-disc list-inside text-sm">
@@ -1121,66 +1051,6 @@ export default function Invitations() {
                       placeholder="ex: +229 97 00 00 00"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#36CC76] focus:border-transparent"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Canaux d'envoi</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedInstantChannels((prev) =>
-                            prev.includes("mail")
-                              ? prev.filter((c) => c !== "mail")
-                              : [...prev, "mail"]
-                          )
-                        }
-                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
-                          selectedInstantChannels.includes("mail")
-                            ? "border-green-600 bg-green-50 text-green-700"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                            selectedInstantChannels.includes("mail")
-                              ? "border-green-600 bg-green-600 text-white"
-                              : "border-gray-300"
-                          }`}
-                        >
-                          {selectedInstantChannels.includes("mail") && <span className="text-xs">✓</span>}
-                        </div>
-                        <Mail className={`w-4 h-4 ${selectedInstantChannels.includes("mail") ? "text-green-600" : ""}`} />
-                        <span>Email</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedInstantChannels((prev) =>
-                            prev.includes("whatsapp")
-                              ? prev.filter((c) => c !== "whatsapp")
-                              : [...prev, "whatsapp"]
-                          )
-                        }
-                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
-                          selectedInstantChannels.includes("whatsapp")
-                            ? "border-green-600 bg-green-50 text-green-700"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                            selectedInstantChannels.includes("whatsapp")
-                              ? "border-green-600 bg-green-600 text-white"
-                              : "border-gray-300"
-                          }`}
-                        >
-                          {selectedInstantChannels.includes("whatsapp") && <span className="text-xs">✓</span>}
-                        </div>
-                        <MessageSquare className="w-4 h-4 text-green-600" />
-                        <span>WhatsApp</span>
-                      </button>
-                    </div>
                   </div>
                 </div>
                 <div className="flex gap-3 mt-6">
@@ -1325,66 +1195,6 @@ export default function Invitations() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#36CC76] focus:border-transparent"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Canaux d'envoi</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedInstantChannels((prev) =>
-                            prev.includes("mail")
-                              ? prev.filter((c) => c !== "mail")
-                              : [...prev, "mail"]
-                          )
-                        }
-                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
-                          selectedInstantChannels.includes("mail")
-                            ? "border-green-600 bg-green-50 text-green-700"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                            selectedInstantChannels.includes("mail")
-                              ? "border-green-600 bg-green-600 text-white"
-                              : "border-gray-300"
-                          }`}
-                        >
-                          {selectedInstantChannels.includes("mail") && <span className="text-xs">✓</span>}
-                        </div>
-                        <Mail className={`w-4 h-4 ${selectedInstantChannels.includes("mail") ? "text-green-600" : ""}`} />
-                        <span>Email</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedInstantChannels((prev) =>
-                            prev.includes("whatsapp")
-                              ? prev.filter((c) => c !== "whatsapp")
-                              : [...prev, "whatsapp"]
-                          )
-                        }
-                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
-                          selectedInstantChannels.includes("whatsapp")
-                            ? "border-green-600 bg-green-50 text-green-700"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                            selectedInstantChannels.includes("whatsapp")
-                              ? "border-green-600 bg-green-600 text-white"
-                              : "border-gray-300"
-                          }`}
-                        >
-                          {selectedInstantChannels.includes("whatsapp") && <span className="text-xs">✓</span>}
-                        </div>
-                        <MessageSquare className="w-4 h-4 text-green-600" />
-                        <span>WhatsApp</span>
-                      </button>
-                    </div>
-                  </div>
                 </div>
                 <div className="flex gap-3 mt-6">
                   <button
@@ -1461,67 +1271,6 @@ export default function Invitations() {
                           Format: .xlsx ou .xls
                         </span>
                       </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Canaux d'envoi</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedInstantChannels((prev) =>
-                            prev.includes("mail")
-                              ? prev.filter((c) => c !== "mail")
-                              : [...prev, "mail"]
-                          )
-                        }
-                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
-                          selectedInstantChannels.includes("mail")
-                            ? "border-green-600 bg-green-50 text-green-700"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                            selectedInstantChannels.includes("mail")
-                              ? "border-green-600 bg-green-600 text-white"
-                              : "border-gray-300"
-                          }`}
-                        >
-                          {selectedInstantChannels.includes("mail") && <span className="text-xs">✓</span>}
-                        </div>
-                        <Mail className={`w-4 h-4 ${selectedInstantChannels.includes("mail") ? "text-green-600" : ""}`} />
-                        <span>Email</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedInstantChannels((prev) =>
-                            prev.includes("whatsapp")
-                              ? prev.filter((c) => c !== "whatsapp")
-                              : [...prev, "whatsapp"]
-                          )
-                        }
-                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm font-medium transition ${
-                          selectedInstantChannels.includes("whatsapp")
-                            ? "border-green-600 bg-green-50 text-green-700"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                            selectedInstantChannels.includes("whatsapp")
-                              ? "border-green-600 bg-green-600 text-white"
-                              : "border-gray-300"
-                          }`}
-                        >
-                          {selectedInstantChannels.includes("whatsapp") && <span className="text-xs">✓</span>}
-                        </div>
-                        <MessageSquare className="w-4 h-4 text-green-600" />
-                        <span>WhatsApp</span>
-                      </button>
                     </div>
                   </div>
                   {importErrors.length > 0 && (

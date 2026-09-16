@@ -895,3 +895,70 @@ export interface UpdateParkingTicketRuleData {
   parking_ids?: number[];
   ticket_ids?: number[];
 }
+
+// Types pour les invitations
+export interface Invitation {
+  id: number;
+  ticket_number: string;
+  event_id: number;
+  ticket_id: number | null;
+  type: "instant" | "batch" | "pre_validation";
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  batch_designation: string | null;
+  status: "pending_confirmation" | "confirmed" | "generated" | "sent" | "rejected";
+  confirmed_at: string | null;
+  generated_at: string | null;
+  sent_at: string | null;
+  confirmation_token: string | null;
+  confirmation_token_expires_at: string | null;
+  qr_code: string | null;
+  pdf_url: string | null;
+  created_at: string;
+  updated_at: string;
+  event?: Event;
+  ticket?: Ticket;
+}
+
+export interface CreateInstantInvitationData {
+  event_id: number;
+  ticket_id?: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  channels?: ("mail" | "whatsapp")[];
+}
+
+export interface CreatePreValidationInvitationData {
+  event_id: number;
+  ticket_id?: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  channels?: ("mail" | "whatsapp")[];
+}
+
+export interface CreateBatchInvitationData {
+  event_id: number;
+  ticket_id?: number;
+  quantity: number;
+  batch_designation: string;
+}
+
+export interface ResendInvitationNotificationsData {
+  channels: ("mail" | "whatsapp")[];
+  email?: string;
+  phone?: string;
+}
+
+export interface ResendInvitationNotificationsResponse {
+  invitation_number: string;
+  results: {
+    mail?: { sent: boolean; to: string; error?: string };
+    whatsapp?: { sent: boolean; to: string; error?: string };
+  };
+}

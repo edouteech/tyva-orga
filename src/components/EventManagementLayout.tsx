@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   Users,
   LogOut,
+  Mail,
 } from "lucide-react";
 
 interface EventManagementLayoutProps {
@@ -239,6 +240,11 @@ const EventManagementLayout: React.FC<EventManagementLayoutProps> = ({
       path: getEventManagementUrl(currentEvent, "dashboard"),
       label: "Dashboard",
       icon: LayoutDashboard,
+    },
+    {
+      path: getEventManagementUrl(currentEvent, "invitations"),
+      label: "Invitations",
+      icon: Mail,
     },
   ];
 

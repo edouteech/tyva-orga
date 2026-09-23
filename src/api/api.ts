@@ -2763,9 +2763,9 @@ export const invitationsAPI = {
     }
   },
 
-  // Télécharger le ticket (PDF)
+  // Télécharger un ticket individuel (PDF)
   downloadTicket: async (id: number): Promise<Blob> => {
-    const response = await api.get(`/invitations/${id}/download-ticket`, {
+    const response = await api.get(`/invitations/${id}/download`, {
       responseType: "blob",
     });
     return response.data;
@@ -2795,3 +2795,55 @@ export const invitationsAPI = {
     }
   },
 };
+
+// Service API pour les échecs d'importation
+export const importFailuresAPI = {
+  // Récupérer la liste des échecs d'importation
+  getAll: async (params?: {
+    event_id?: number;
+    status?: "pending" | "retried" | "failed";
+    invitation_type?: "instant" | "pre_validation";
+  }): Promise<any[]> => {
+    const response = await api.get("/import-failures", { params });
+    return response.data;
+  },
+
+  // Créer un échec d'importation
+  create: async (data: {
+    event_id: number;
+    invitation_type: "instant" | "pre_validation";
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone?: string;
+    ticket_id?: number;
+    error_message: string;
+  }): Promise<any> => {
+    const response = await api.post("/import-failures", data);
+    return response.data;
+  },
+
+  // Créer plusieurs échecs d'importation
+  createMultiple: async (failures: any[]): Promise<{ message: string; count: number }> => {
+    const response = await api.post("/import-failures/multiple", { failures });
+    return response.data;
+  },
+
+  // Mettre à jour le statut d'un échec
+  updateStatus: async (id: number, status: "pending" | "retried" | "failed"): Promise<any> => {
+    const response = await api.put(`/import-failures/${id}/status`, { status });
+    return response.data;
+  },
+
+  // Supprimer un échec
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/import-failures/${id}`);
+  },
+
+  // Réessayer un échec
+  retry: async (id: number): Promise<{ message: string }> => {
+    const response = await api.post(`/import-failures/${id}/retry`);
+    return response.data;
+  },
+};
+

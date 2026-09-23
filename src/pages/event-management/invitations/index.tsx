@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useAppSelector } from "../../../store/store";
-import { invitationsAPI, ticketsAPI } from "../../../api/api";
+import { invitationsAPI, ticketsAPI, importFailuresAPI } from "../../../api/api";
 import type { Invitation, Ticket } from "../../../lib/types";
-import { DataTable, DeleteConfirmation } from "../../../components/global/";
-import type { Column, Action } from "../../../components/global/";
+import { DataTable, DeleteConfirmation, PhoneCodeSelect } from "../../../components/global";
+import type { Column, Action } from "../../../components/global";
 import {
   Plus,
   Mail,
@@ -17,6 +17,7 @@ import {
   AlertCircle,
   FileText,
   X,
+  XCircle,
   FileSpreadsheet,
 } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -29,8 +30,8 @@ export default function Invitations() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "instant" | "pre_validation">("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [mainTab, setMainTab] = useState<"direct" | "validation">("direct");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPreValidationModal, setShowPreValidationModal] = useState(false);
   const [activeTab, setActiveTab] = useState<"instant" | "batch" | "import">("instant");
@@ -42,6 +43,9 @@ export default function Invitations() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importedData, setImportedData] = useState<any[]>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importFailures, setImportFailures] = useState<{ data: any; error: string }[]>([]);
+  const [importSuccessCount, setImportSuccessCount] = useState<number>(0);
+  const [dbImportFailures, setDbImportFailures] = useState<any[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     invitation: Invitation | null;
@@ -77,10 +81,20 @@ export default function Invitations() {
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
 
+  const loadImportFailures = async () => {
+    try {
+      const data = await importFailuresAPI.getAll({ event_id: eventIdNum, status: "pending" });
+      setDbImportFailures(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Erreur lors du chargement des échecs d'importation:", err);
+    }
+  };
+
   useEffect(() => {
     if (eventIdNum) {
       loadInvitations();
       loadTickets();
+      loadImportFailures();
     }
   }, [eventIdNum]);
 
@@ -110,9 +124,10 @@ export default function Invitations() {
       }
       const data = await ticketsAPI.getByEventId(eventIdNum);
       console.log("Tickets loaded:", data);
-      setTickets(data);
+      setTickets(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Erreur lors du chargement des tickets:", err);
+      setTickets([]);
     }
   };
 
@@ -120,18 +135,26 @@ export default function Invitations() {
     e.preventDefault();
     try {
       setIsCreating(true);
+      
+      const phoneInput = document.getElementById('phone') as HTMLInputElement;
+      const phoneValue = formData.phone || phoneInput?.value || "";
+      
+      if (!formData.ticket_id) {
+        setError("Veuillez sélectionner un ticket");
+        return;
+      }
+      
       await invitationsAPI.createInstant({
         event_id: eventIdNum,
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
-        phone: formData.phone,
-        ticket_id: formData.ticket_id ? parseInt(formData.ticket_id) : undefined,
+        phone: phoneValue,
+        ticket_id: parseInt(formData.ticket_id),
       });
 
       setShowCreateModal(false);
       setFormData({ first_name: "", last_name: "", email: "", phone: "", ticket_id: "" });
-      setActiveTab("instant");
       await loadInvitations();
     } catch (err) {
       setError("Erreur lors de la création de l'invitation");
@@ -145,13 +168,22 @@ export default function Invitations() {
     e.preventDefault();
     try {
       setIsCreatingPreValidation(true);
+      
+      const phoneInput = document.getElementById('phone') as HTMLInputElement;
+      const phoneValue = phoneInput?.value || "";
+      
+      if (!formData.ticket_id) {
+        setError("Veuillez sélectionner un ticket");
+        return;
+      }
+      
       await invitationsAPI.createPreValidation({
         event_id: eventIdNum,
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
-        phone: formData.phone || undefined,
-        ticket_id: formData.ticket_id ? parseInt(formData.ticket_id) : undefined,
+        phone: formData.phone || phoneValue,
+        ticket_id: parseInt(formData.ticket_id),
       });
 
       setShowPreValidationModal(false);
@@ -169,16 +201,21 @@ export default function Invitations() {
     e.preventDefault();
     try {
       setIsCreatingBatch(true);
+      
+      if (!batchFormData.ticket_id) {
+        setError("Veuillez sélectionner un ticket");
+        return;
+      }
+      
       await invitationsAPI.createBatch({
         event_id: eventIdNum,
         quantity: batchFormData.quantity,
         batch_designation: batchFormData.batch_designation,
-        ticket_id: batchFormData.ticket_id ? parseInt(batchFormData.ticket_id) : undefined,
+        ticket_id: parseInt(batchFormData.ticket_id),
       });
 
       setShowCreateModal(false);
       setBatchFormData({ quantity: 10, batch_designation: "", ticket_id: "" });
-      setActiveTab("instant");
       await loadInvitations();
     } catch (err) {
       setError("Erreur lors de la création des invitations en lot");
@@ -261,17 +298,61 @@ export default function Invitations() {
 
     try {
       setIsImporting(true);
+      setImportFailures([]);
+      setImportSuccessCount(0);
       const ticketId = formData.ticket_id ? parseInt(formData.ticket_id) : undefined;
+      const failuresToStore: any[] = [];
 
       for (const data of importedData) {
-        await invitationsAPI.createInstant({
-          event_id: eventIdNum,
-          first_name: data.first_name,
-          last_name: data.last_name,
-          email: data.email,
-          phone: data.phone,
-          ticket_id: data.ticket_id ? parseInt(data.ticket_id) : ticketId,
-        });
+        const ticketIdToUse = data.ticket_id ? parseInt(data.ticket_id) : (ticketId || undefined);
+        
+        try {
+          if (!ticketIdToUse) {
+            throw new Error("Ticket ID requis mais non fourni");
+          }
+          
+          await invitationsAPI.createInstant({
+            event_id: eventIdNum,
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            phone: data.phone,
+            ticket_id: ticketIdToUse,
+          });
+          setImportSuccessCount(prev => prev + 1);
+        } catch (err) {
+          let errorMessage = "Erreur inconnue";
+          
+          if (err instanceof Error) {
+            errorMessage = err.message;
+          }
+          
+          // Extraire le message d'erreur depuis la réponse Axios
+          if (err && typeof err === 'object' && 'response' in err) {
+            const axiosError = err as any;
+            
+            if (axiosError.response?.data?.errors) {
+              const errors = axiosError.response.data.errors;
+              errorMessage = Object.values(errors).flat().join(', ');
+            } else if (axiosError.response?.data?.message) {
+              errorMessage = axiosError.response.data.message;
+            } else if (axiosError.message) {
+              errorMessage = axiosError.message;
+            }
+          }
+          
+          setImportFailures(prev => [...prev, { data, error: errorMessage }]);
+          failuresToStore.push({
+            event_id: eventIdNum,
+            invitation_type: "instant",
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            phone: data.phone || null,
+            ticket_id: ticketIdToUse,
+            error_message: errorMessage,
+          });
+        }
       }
 
       setShowCreateModal(false);
@@ -281,6 +362,17 @@ export default function Invitations() {
       setFormData({ first_name: "", last_name: "", email: "", phone: "", ticket_id: "" });
       setActiveTab("instant");
       await loadInvitations();
+      await loadImportFailures();
+
+      // Stocker les échecs dans la base de données
+      if (failuresToStore.length > 0) {
+        try {
+          await importFailuresAPI.createMultiple(failuresToStore);
+          await loadImportFailures();
+        } catch (err) {
+          console.error("Erreur lors de l'enregistrement des échecs:", err);
+        }
+      }
     } catch (err) {
       setError("Erreur lors de l'import des invitations");
       console.error(err);
@@ -297,31 +389,98 @@ export default function Invitations() {
 
     try {
       setIsImporting(true);
+      setImportFailures([]);
+      setImportSuccessCount(0);
       const ticketId = formData.ticket_id ? parseInt(formData.ticket_id) : undefined;
+      const failuresToStore: any[] = [];
 
       for (const data of importedData) {
-        await invitationsAPI.createPreValidation({
-          event_id: eventIdNum,
-          first_name: data.first_name,
-          last_name: data.last_name,
-          email: data.email,
-          phone: data.phone,
-          ticket_id: data.ticket_id ? parseInt(data.ticket_id) : ticketId,
-        });
+        const ticketIdToUse = data.ticket_id ? parseInt(data.ticket_id) : (ticketId || undefined);
+        
+        try {
+          if (!ticketIdToUse) {
+            throw new Error("Ticket ID requis mais non fourni");
+          }
+          
+          await invitationsAPI.createPreValidation({
+            event_id: eventIdNum,
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            phone: data.phone,
+            ticket_id: ticketIdToUse,
+          });
+          setImportSuccessCount(prev => prev + 1);
+        } catch (err) {
+          let errorMessage = "Erreur inconnue";
+          
+          if (err instanceof Error) {
+            errorMessage = err.message;
+          }
+          
+          // Extraire le message d'erreur depuis la réponse Axios
+          if (err && typeof err === 'object' && 'response' in err) {
+            const axiosError = err as any;
+            
+            if (axiosError.response?.data?.errors) {
+              const errors = axiosError.response.data.errors;
+              errorMessage = Object.values(errors).flat().join(', ');
+            } else if (axiosError.response?.data?.message) {
+              errorMessage = axiosError.response.data.message;
+            } else if (axiosError.message) {
+              errorMessage = axiosError.message;
+            }
+          }
+          
+          setImportFailures(prev => [...prev, { data, error: errorMessage }]);
+          failuresToStore.push({
+            event_id: eventIdNum,
+            invitation_type: "pre_validation",
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            phone: data.phone || null,
+            ticket_id: ticketIdToUse,
+            error_message: errorMessage,
+          });
+        }
       }
 
-      setShowPreValidationModal(false);
-      setImportFile(null);
-      setImportedData([]);
-      setImportErrors([]);
-      setFormData({ first_name: "", last_name: "", email: "", phone: "", ticket_id: "" });
-      setPreValidationActiveTab("single");
+      // Stocker les échecs en base de données
+      if (failuresToStore.length > 0) {
+        await importFailuresAPI.createMultiple(failuresToStore);
+      }
+
       await loadInvitations();
+      await loadImportFailures();
     } catch (err) {
       setError("Erreur lors de l'import des invitations");
       console.error(err);
     } finally {
       setIsImporting(false);
+    }
+  };
+
+  const handleRetryDbFailure = async (id: number) => {
+    try {
+      await importFailuresAPI.retry(id);
+      await loadImportFailures();
+      await loadInvitations();
+    } catch (err) {
+      setError("Erreur lors de la réessai");
+      console.error(err);
+    }
+  };
+
+  const handleDeleteDbFailure = async (id: number) => {
+    if (!confirm("Voulez-vous vraiment supprimer cet échec ?")) return;
+    
+    try {
+      await importFailuresAPI.delete(id);
+      await loadImportFailures();
+    } catch (err) {
+      setError("Erreur lors de la suppression");
+      console.error(err);
     }
   };
 
@@ -375,6 +534,8 @@ export default function Invitations() {
     switch (status) {
       case "confirmed":
         return <CheckCircle className="w-3 h-3" />;
+      case "rejected":
+        return <XCircle className="w-3 h-3" />;
       case "generated":
         return <FileText className="w-3 h-3" />;
       case "sent":
@@ -390,6 +551,8 @@ export default function Invitations() {
     switch (status) {
       case "confirmed":
         return "bg-green-100 text-green-700";
+      case "rejected":
+        return "bg-red-100 text-red-700";
       case "generated":
         return "bg-blue-100 text-blue-700";
       case "sent":
@@ -403,12 +566,12 @@ export default function Invitations() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case "confirmed":
-        return "Confirmé";
+      case "rejected":
+        return "Rejeté";
       case "generated":
         return "Généré";
       case "sent":
-        return "Envoyé";
+        return "Confirmé";
       case "pending_confirmation":
         return "En attente";
       default:
@@ -418,8 +581,19 @@ export default function Invitations() {
 
   const filteredInvitations = Array.isArray(invitations) ? invitations.filter((invitation) => {
     if (!invitation) return false;
-    if (filter !== "all" && invitation.type !== filter) return false;
+    
+    // Filter based on main tab
+    if (mainTab === "direct") {
+      // Show only instant and batch invitations
+      if (invitation.type !== "instant" && invitation.type !== "batch") return false;
+    } else if (mainTab === "validation") {
+      // Show only pre_validation invitations
+      if (invitation.type !== "pre_validation") return false;
+    }
+    
+    // Apply status filter
     if (statusFilter !== "all" && invitation.status !== statusFilter) return false;
+    
     return true;
   }) : [];
 
@@ -441,7 +615,7 @@ export default function Invitations() {
         let typeColor = "";
         switch (invitation?.type) {
           case "instant":
-            typeLabel = "Instantanée";
+            typeLabel = "Invitation Directe";
             typeColor = "text-blue-600";
             break;
           case "batch":
@@ -449,7 +623,7 @@ export default function Invitations() {
             typeColor = "text-green-600";
             break;
           case "pre_validation":
-            typeLabel = "Pré-validation";
+            typeLabel = "Invitation avec Validation";
             typeColor = "text-purple-600";
             break;
           default:
@@ -481,6 +655,14 @@ export default function Invitations() {
       sortable: true,
       render: (_, invitation) => (
         <span className="text-sm">{invitation?.email || "-"}</span>
+      ),
+    },
+    {
+      key: "phone",
+      label: "Téléphone",
+      sortable: true,
+      render: (_, invitation) => (
+        <span className="text-sm">{invitation?.phone || "-"}</span>
       ),
     },
     {
@@ -599,136 +781,103 @@ export default function Invitations() {
   console.log("Filtered invitations:", filteredInvitations);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div>
+      <div className="flex justify-between items-center mb-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gestion des Invitations</h1>
           <p className="text-sm text-gray-600 mt-1">
             Créez et gérez les invitations pour cet événement
           </p>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => {
-              setActiveTab("instant");
-              loadTickets();
-              setShowCreateModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-[#36CC76] text-white rounded-lg hover:bg-[#2BA85F] transition shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Invitations instantanées
-          </button>
-          <button
-            onClick={() => {
-              loadTickets();
-              setShowPreValidationModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-[#4A94E3] text-white rounded-lg hover:bg-[#023C40] transition shadow-sm"
-          >
-            <Mail className="w-4 h-4" />
-            Invitation Pré-validation
-          </button>
-        </div>
       </div>
 
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Invitations</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{invitations.length}</p>
-            </div>
-            <div className="bg-blue-100 p-3 rounded-full">
-              <FileText className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
+      {/* Sélecteur de mode — onglets */}
+      <div className="flex gap-4 mb-0">
+        <button
+          onClick={() => { setMainTab("direct"); setStatusFilter("all"); }}
+          className={`px-6 py-4 font-semibold transition-all border-2 rounded-t-xl flex items-center justify-center gap-3 ${
+            mainTab === "direct"
+              ? "border-[#36CC76] bg-[#36CC76] text-white shadow-lg"
+              : "border-gray-200 bg-white text-gray-600 hover:border-[#36CC76]/50 hover:bg-[#f0fdf4]"
+          }`}
+        >
+          <Plus className="w-5 h-5" />
+          Invitation Directe
+        </button>
+        <button
+          onClick={() => { setMainTab("validation"); setStatusFilter("all"); }}
+          className={`px-6 py-4 font-semibold transition-all border-2 rounded-t-xl flex items-center justify-center gap-3 ${
+            mainTab === "validation"
+              ? "border-[#4A94E3] bg-[#4A94E3] text-white shadow-lg"
+              : "border-gray-200 bg-white text-gray-600 hover:border-[#4A94E3]/50 hover:bg-[#eff6ff]"
+          }`}
+        >
+          <Mail className="w-5 h-5" />
+          Invitation avec Validation
+        </button>
+      </div>
+
+      {/* Barre d'action et filtre */}
+      <div className="bg-white border border-gray-200 border-b-0 shadow-sm px-5 py-4 flex items-center justify-between gap-4 mt-0">
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-medium text-gray-500 whitespace-nowrap">Filtrer par statut :</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#36CC76] focus:border-transparent bg-gray-50"
+          >
+            <option value="all">Tous les statuts</option>
+            {mainTab === "direct" ? (
+              <>
+                <option value="generated">Généré</option>
+                <option value="sent">Confirmé</option>
+              </>
+            ) : (
+              <>
+                <option value="pending_confirmation">En attente</option>
+                <option value="rejected">Rejeté</option>
+                <option value="sent">Confirmé</option>
+              </>
+            )}
+          </select>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Instantanées</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                {invitations.filter((inv) => inv.type === "instant").length}
-              </p>
-            </div>
-            <div className="bg-green-100 p-3 rounded-full">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Pré-validation</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                {invitations.filter((inv) => inv.type === "pre_validation").length}
-              </p>
-            </div>
-            <div className="bg-indigo-100 p-3 rounded-full">
-              <Clock className="w-6 h-6 text-indigo-600" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">En Lot</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                {invitations.filter((inv) => inv.type === "batch").length}
-              </p>
-            </div>
-            <div className="bg-teal-100 p-3 rounded-full">
-              <FolderArchive className="w-6 h-6 text-teal-600" />
-            </div>
-          </div>
+        <div>
+          {mainTab === "direct" ? (
+            <button
+              onClick={() => {
+                setActiveTab("instant");
+                loadTickets();
+                setFormData({ first_name: "", last_name: "", email: "", phone: "", ticket_id: "" });
+                setShowCreateModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-[#36CC76] text-white rounded-lg hover:bg-[#2BA85F] transition shadow-sm font-medium text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Nouvelle invitation directe
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                loadTickets();
+                setFormData({ first_name: "", last_name: "", email: "", phone: "", ticket_id: "" });
+                setShowPreValidationModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-[#4A94E3] text-white rounded-lg hover:bg-[#3a7bcf] transition shadow-sm font-medium text-sm"
+            >
+              <Mail className="w-4 h-4" />
+              Nouvelle invitation avec validation
+            </button>
+          )}
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
           {error}
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                Type d'invitation
-              </label>
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value as any)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#36CC76] focus:border-transparent"
-              >
-                <option value="all">Tous les types</option>
-                <option value="instant">Instantanée</option>
-                <option value="batch">Lot</option>
-                <option value="pre_validation">Pré-validation</option>
-              </select>
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                Statut
-              </label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#36CC76] focus:border-transparent"
-              >
-                <option value="all">Tous les statuts</option>
-                <option value="pending_confirmation">En attente</option>
-                <option value="confirmed">Confirmé</option>
-                <option value="generated">Généré</option>
-                <option value="sent">Envoyé</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
+      <div className="bg-white rounded-b-lg shadow-sm border border-gray-200 border-t-0 mt-0">
         <DataTable
           columns={columns}
           data={filteredInvitations}
@@ -737,6 +886,90 @@ export default function Invitations() {
           emptyMessage="Aucune invitation trouvée"
         />
       </div>
+
+      {/* Tableau des échecs d'importation */}
+      {dbImportFailures.length > 0 && (
+        <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              Échecs d'importation ({dbImportFailures.length})
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Ces invitations ont échoué lors de l'importation. Vous pouvez les réessayer individuellement.
+            </p>
+          </div>
+          <DataTable
+            columns={[
+              {
+                key: "first_name",
+                label: "Nom",
+                sortable: true,
+                render: (_, failure) => (
+                  <span className="text-sm font-medium">
+                    {failure.first_name} {failure.last_name}
+                  </span>
+                ),
+              },
+              {
+                key: "email",
+                label: "Email",
+                sortable: true,
+                render: (_, failure) => (
+                  <span className="text-sm">{failure.email}</span>
+                ),
+              },
+              {
+                key: "invitation_type",
+                label: "Type",
+                sortable: true,
+                render: (_, failure) => (
+                  <span className="text-sm">
+                    {failure.invitation_type === "instant" ? "Invitation Directe" : "Invitation avec Validation"}
+                  </span>
+                ),
+              },
+              {
+                key: "error_message",
+                label: "Erreur",
+                sortable: true,
+                render: (_, failure) => (
+                  <span className="text-sm text-red-600" title={failure.error_message}>
+                    {failure.error_message.length > 50 
+                      ? failure.error_message.substring(0, 50) + "..." 
+                      : failure.error_message}
+                  </span>
+                ),
+              },
+              {
+                key: "created_at",
+                label: "Date",
+                sortable: true,
+                render: (_, failure) => (
+                  <span className="text-sm">
+                    {new Date(failure.created_at).toLocaleDateString('fr-FR')}
+                  </span>
+                ),
+              },
+            ]}
+            data={dbImportFailures}
+            actions={[
+              {
+                label: "Réessayer",
+                icon: RefreshCw,
+                onClick: (failure) => handleRetryDbFailure(failure.id),
+              },
+              {
+                label: "Supprimer",
+                icon: Trash2,
+                onClick: (failure) => handleDeleteDbFailure(failure.id),
+              },
+            ]}
+            loading={loading}
+            emptyMessage="Aucun échec d'importation"
+          />
+        </div>
+      )}
 
       <DeleteConfirmation
         isOpen={deleteConfirm.isOpen}
@@ -756,7 +989,7 @@ export default function Invitations() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Invitation Instantanée</h2>
+              <h2 className="text-xl font-bold text-gray-900">Invitation Directe</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition"
@@ -832,7 +1065,7 @@ export default function Invitations() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#36CC76] focus:border-transparent"
                     >
                       <option value="">Sélectionner un ticket</option>
-                      {tickets.map((ticket) => (
+                      {(Array.isArray(tickets) ? tickets : []).map((ticket) => (
                         <option key={ticket.id} value={ticket.id}>
                           {ticket.name} - {ticket.price} {ticket.currency}
                         </option>
@@ -875,7 +1108,7 @@ export default function Invitations() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isCreatingBatch}
+                    disabled={isCreatingBatch || !batchFormData.ticket_id}
                     className="flex-1 px-4 py-2 bg-[#5F9EA0] text-white rounded-lg hover:bg-[#4A8A8A] transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isCreatingBatch ? (
@@ -951,11 +1184,51 @@ export default function Invitations() {
                       </ul>
                     </div>
                   )}
-                  {importedData.length > 0 && (
+                  {importedData.length > 0 && importFailures.length === 0 && (
                     <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
                       <p className="text-sm font-medium">
                         {importedData.length} invitation(s) prête(s) à être importée(s)
                       </p>
+                    </div>
+                  )}
+                  {importSuccessCount > 0 && importFailures.length === 0 && importedData.length === 0 && (
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                      <p className="text-sm font-medium">
+                        {importSuccessCount} invitation(s) importée(s) avec succès
+                      </p>
+                    </div>
+                  )}
+                  {importFailures.length > 0 && (
+                    <div className="mt-4">
+                      <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4">
+                        <p className="text-sm font-medium">
+                          Import terminé : {importSuccessCount} succès, {importFailures.length} échec(s)
+                        </p>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full bg-white border border-gray-300 rounded-lg">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Prénom</th>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Nom</th>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Email</th>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Téléphone</th>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Erreur</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {importFailures.map((failure, index) => (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-4 py-2 text-sm text-gray-600 border-b">{failure.data.first_name}</td>
+                                <td className="px-4 py-2 text-sm text-gray-600 border-b">{failure.data.last_name}</td>
+                                <td className="px-4 py-2 text-sm text-gray-600 border-b">{failure.data.email}</td>
+                                <td className="px-4 py-2 text-sm text-gray-600 border-b">{failure.data.phone}</td>
+                                <td className="px-4 py-2 text-sm text-red-600 border-b">{failure.error}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -967,6 +1240,8 @@ export default function Invitations() {
                       setImportFile(null);
                       setImportedData([]);
                       setImportErrors([]);
+                      setImportFailures([]);
+                      setImportSuccessCount(0);
                       setActiveTab("instant");
                     }}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
@@ -976,18 +1251,18 @@ export default function Invitations() {
                   <button
                     type="button"
                     onClick={handleImportInstant}
-                    disabled={isImporting || importedData.length === 0}
-                    className="flex-1 px-4 py-2 bg-[#4A94E3] text-white rounded-lg hover:bg-[#023C40] transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {isImporting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Import...
-                      </>
-                    ) : (
-                      "Importer"
-                    )}
-                  </button>
+                    disabled={isImporting || importedData.length === 0 || !formData.ticket_id}
+                      className="flex-1 px-4 py-2 bg-[#4A94E3] text-white rounded-lg hover:bg-[#023C40] transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isImporting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Import...
+                        </>
+                      ) : (
+                        "Importer"
+                      )}
+                    </button>
                 </div>
               </div>
             ) : (
@@ -1002,7 +1277,7 @@ export default function Invitations() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#36CC76] focus:border-transparent"
                     >
                       <option value="">Sélectionner un ticket</option>
-                      {tickets.map((ticket) => (
+                      {(Array.isArray(tickets) ? tickets : []).map((ticket) => (
                         <option key={ticket.id} value={ticket.id}>
                           {ticket.name} - {ticket.price} {ticket.currency}
                         </option>
@@ -1043,12 +1318,11 @@ export default function Invitations() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
-                    <input
-                      type="tel"
+                    <PhoneCodeSelect
+                      id="phone"
+                      name="phone"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="ex: +229 97 00 00 00"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#36CC76] focus:border-transparent"
+                      onChange={(val) => setFormData((prev) => ({ ...prev, phone: val }))}
                     />
                   </div>
                 </div>
@@ -1062,7 +1336,7 @@ export default function Invitations() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isCreating}
+                    disabled={isCreating || !formData.ticket_id}
                     className="flex-1 px-4 py-2 bg-[#36CC76] text-white rounded-lg hover:bg-[#2BA85F] transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isCreating ? (
@@ -1081,12 +1355,12 @@ export default function Invitations() {
         </div>
       )}
 
-      {/* Modal pré-validation */}
+      {/* Modal Invitation avec Validation */}
       {showPreValidationModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Invitation Pré-validation</h2>
+              <h2 className="text-xl font-bold text-gray-900">Invitation avec Validation</h2>
               <button
                 onClick={() => setShowPreValidationModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition"
@@ -1145,7 +1419,7 @@ export default function Invitations() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#36CC76] focus:border-transparent"
                     >
                       <option value="">Sélectionner un ticket</option>
-                      {tickets.map((ticket) => (
+                      {(Array.isArray(tickets) ? tickets : []).map((ticket) => (
                         <option key={ticket.id} value={ticket.id}>
                           {ticket.name} - {ticket.price} {ticket.currency}
                         </option>
@@ -1186,12 +1460,11 @@ export default function Invitations() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
-                    <input
-                      type="tel"
+                    <PhoneCodeSelect
+                      id="phone-prevalidation"
+                      name="phone"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="ex: +229 97 00 00 00"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#36CC76] focus:border-transparent"
+                      onChange={(val) => setFormData((prev) => ({ ...prev, phone: val }))}
                     />
                   </div>
                 </div>
@@ -1281,11 +1554,51 @@ export default function Invitations() {
                       </ul>
                     </div>
                   )}
-                  {importedData.length > 0 && (
+                  {importedData.length > 0 && importFailures.length === 0 && (
                     <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
                       <p className="text-sm font-medium">
                         {importedData.length} invitation(s) prête(s) à être importée(s)
                       </p>
+                    </div>
+                  )}
+                  {importSuccessCount > 0 && importFailures.length === 0 && importedData.length === 0 && (
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                      <p className="text-sm font-medium">
+                        {importSuccessCount} invitation(s) importée(s) avec succès
+                      </p>
+                    </div>
+                  )}
+                  {importFailures.length > 0 && (
+                    <div className="mt-4">
+                      <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4">
+                        <p className="text-sm font-medium">
+                          Import terminé : {importSuccessCount} succès, {importFailures.length} échec(s)
+                        </p>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full bg-white border border-gray-300 rounded-lg">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Prénom</th>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Nom</th>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Email</th>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Téléphone</th>
+                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b">Erreur</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {importFailures.map((failure, index) => (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-4 py-2 text-sm text-gray-600 border-b">{failure.data.first_name}</td>
+                                <td className="px-4 py-2 text-sm text-gray-600 border-b">{failure.data.last_name}</td>
+                                <td className="px-4 py-2 text-sm text-gray-600 border-b">{failure.data.email}</td>
+                                <td className="px-4 py-2 text-sm text-gray-600 border-b">{failure.data.phone}</td>
+                                <td className="px-4 py-2 text-sm text-red-600 border-b">{failure.error}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1297,6 +1610,8 @@ export default function Invitations() {
                       setImportFile(null);
                       setImportedData([]);
                       setImportErrors([]);
+                      setImportFailures([]);
+                      setImportSuccessCount(0);
                       setPreValidationActiveTab("single");
                     }}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
@@ -1306,7 +1621,7 @@ export default function Invitations() {
                   <button
                     type="button"
                     onClick={handleImportPreValidation}
-                    disabled={isImporting || importedData.length === 0}
+                    disabled={isImporting || importedData.length === 0 || !formData.ticket_id}
                     className="flex-1 px-4 py-2 bg-[#4A94E3] text-white rounded-lg hover:bg-[#023C40] transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isImporting ? (
@@ -1317,7 +1632,7 @@ export default function Invitations() {
                     ) : (
                       "Importer"
                     )}
-                  </button>
+                    </button>
                 </div>
               </div>
             )}

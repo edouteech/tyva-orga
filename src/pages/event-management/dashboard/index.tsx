@@ -368,7 +368,7 @@ const EventDashboard: React.FC = () => {
         </div>
 
         {/* Niveau 1 : Totaux */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
           <Tooltip content="Nombre total d'invitations envoyées">
             <div className="bg-white rounded-xl shadow p-4 flex flex-col border border-gray-100 min-h-[80px]">
               <span className="text-xs text-gray-500 font-medium mb-1">
@@ -396,6 +396,28 @@ const EventDashboard: React.FC = () => {
               </span>
               <span className="text-xl font-bold text-gray-900">
                 {invitations.filter((inv) => inv.type === "instant" || inv.type === "batch" || (inv.type === "pre_validation" && (inv.status === "sent" || inv.status === "pending_confirmation"))).length}
+              </span>
+            </div>
+          </Tooltip>
+          <Tooltip content="Nombre d'invitations scannées à l'entrée (invités présents)">
+            <div className="bg-white rounded-xl shadow p-4 flex flex-col border border-gray-100 min-h-[80px]">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-500 font-medium">
+                  Invités présents
+                </span>
+                {(() => {
+                  const confirmedCount = invitations.filter((inv) => inv.type === "instant" || inv.type === "batch" || (inv.type === "pre_validation" && inv.status === "sent")).length;
+                  const presentCount = invitations.filter((inv) => (inv.is_used && inv.is_used > 0) || (inv.verifications && inv.verifications.length > 0)).length;
+                  const rate = confirmedCount > 0 ? Math.round((presentCount / confirmedCount) * 100) : 0;
+                  return confirmedCount > 0 ? (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                      {rate}%
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+              <span className="text-xl font-bold text-emerald-600">
+                {invitations.filter((inv) => (inv.is_used && inv.is_used > 0) || (inv.verifications && inv.verifications.length > 0)).length}
               </span>
             </div>
           </Tooltip>
@@ -431,6 +453,9 @@ const EventDashboard: React.FC = () => {
                 <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
                   Non identifiable: {invitations.filter((inv) => inv.type === "batch").length}
                 </span>
+                <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
+                  Présents: {invitations.filter((inv) => (inv.type === "instant" || inv.type === "batch") && ((inv.is_used && inv.is_used > 0) || (inv.verifications && inv.verifications.length > 0))).length}
+                </span>
               </div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow border border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-2 hover:shadow-md transition-shadow">
@@ -448,6 +473,9 @@ const EventDashboard: React.FC = () => {
                 </span>
                 <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
                   Rejeté: {invitations.filter((inv) => inv.type === "pre_validation" && inv.status === "rejected").length}
+                </span>
+                <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
+                  Présents: {invitations.filter((inv) => inv.type === "pre_validation" && ((inv.is_used && inv.is_used > 0) || (inv.verifications && inv.verifications.length > 0))).length}
                 </span>
               </div>
             </div>

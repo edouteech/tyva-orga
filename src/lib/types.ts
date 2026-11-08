@@ -920,6 +920,13 @@ export interface Invitation {
   updated_at: string;
   event?: Event;
   ticket?: Ticket;
+  is_used?: number;
+  verifications?: Array<{
+    id: number;
+    invitation_id: number;
+    status: string;
+    date_verif: string;
+  }>;
 }
 
 export interface CreateInstantInvitationData {

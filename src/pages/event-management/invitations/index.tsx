@@ -592,7 +592,21 @@ export default function Invitations() {
     }
     
     // Apply status filter
-    if (statusFilter !== "all" && invitation.status !== statusFilter) return false;
+    if (statusFilter === "present") {
+      const isPresent = Boolean(
+        (invitation.is_used && invitation.is_used > 0) ||
+        (invitation.verifications && invitation.verifications.length > 0)
+      );
+      if (!isPresent) return false;
+    } else if (statusFilter === "not_scanned") {
+      const isPresent = Boolean(
+        (invitation.is_used && invitation.is_used > 0) ||
+        (invitation.verifications && invitation.verifications.length > 0)
+      );
+      if (isPresent) return false;
+    } else if (statusFilter !== "all" && invitation.status !== statusFilter) {
+      return false;
+    }
     
     return true;
   }) : [];
@@ -689,6 +703,36 @@ export default function Invitations() {
           </span>
         </div>
       ),
+    },
+    {
+      key: "is_used",
+      label: "Présence",
+      sortable: true,
+      render: (_, invitation) => {
+        const isPresent = Boolean(
+          (invitation?.is_used && invitation.is_used > 0) ||
+          (invitation?.verifications && invitation.verifications.length > 0)
+        );
+        const lastScan = invitation?.verifications?.[0]?.date_verif;
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold w-fit ${
+                isPresent
+                  ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                  : "bg-gray-100 text-gray-500"
+              }`}
+            >
+              {isPresent ? "✓ Présent" : "Non scanné"}
+            </span>
+            {isPresent && lastScan && (
+              <span className="text-[10px] text-gray-500">
+                {new Date(lastScan).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "pdf_url",
@@ -827,6 +871,8 @@ export default function Invitations() {
             className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#36CC76] focus:border-transparent bg-gray-50"
           >
             <option value="all">Tous les statuts</option>
+            <option value="present">Présents (scannés)</option>
+            <option value="not_scanned">Non scannés</option>
             {mainTab === "direct" ? (
               <>
                 <option value="generated">Généré</option>

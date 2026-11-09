@@ -1021,6 +1021,27 @@ export interface AccreditationFunction {
   accreditations_count?: number;
 }
 
+export interface AccreditationImportFailure {
+  id: number;
+  event_id: number;
+  function_id: number | null;
+  type: "direct" | "pre_validation";
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  organization: string | null;
+  activity_ids: number[];
+  error_message: string;
+  created_at: string;
+  badge_function?: { id: number; name: string } | null;
+}
+
+export type NewAccreditationImportFailure = Omit<
+  AccreditationImportFailure,
+  "id" | "event_id" | "created_at" | "badge_function"
+>;
+
 export interface CreateDirectAccreditationData {
   event_id: number;
   first_name: string;

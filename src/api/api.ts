@@ -84,6 +84,8 @@ import type {
   // Accreditation types
   Accreditation,
   AccreditationFunction,
+  AccreditationImportFailure,
+  NewAccreditationImportFailure,
   CreateDirectAccreditationData,
   CreatePreValidationAccreditationData,
   CreateBatchAccreditationData,
@@ -2855,6 +2857,28 @@ export const importFailuresAPI = {
   retry: async (id: number): Promise<{ message: string }> => {
     const response = await api.post(`/import-failures/${id}/retry`);
     return response.data;
+  },
+};
+
+// Services API pour les échecs d'import Excel des accréditations
+export const accreditationImportFailuresAPI = {
+  getAll: async (eventId: number): Promise<AccreditationImportFailure[]> => {
+    const response = await api.get<ApiResponse<AccreditationImportFailure[]>>("/accreditation-import-failures", {
+      params: { event_id: eventId },
+    });
+    return response.data.data;
+  },
+
+  createMultiple: async (eventId: number, failures: NewAccreditationImportFailure[]): Promise<void> => {
+    await api.post("/accreditation-import-failures", { event_id: eventId, failures });
+  },
+
+  retry: async (id: number): Promise<void> => {
+    await api.post(`/accreditation-import-failures/${id}/retry`);
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/accreditation-import-failures/${id}`);
   },
 };
 

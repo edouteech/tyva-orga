@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useAppSelector } from "../../../store/store";
-import { accreditationsAPI, accreditationFunctionsAPI, activitiesAPI } from "../../../api/api";
-import type { Accreditation, AccreditationFunction, Activity } from "../../../lib/types";
+import { accreditationsAPI, accreditationFunctionsAPI, accreditationImportFailuresAPI, activitiesAPI } from "../../../api/api";
+import type { Accreditation, AccreditationFunction, AccreditationImportFailure, Activity } from "../../../lib/types";
 import { DataTable, DeleteConfirmation } from "../../../components/global";
 import type { Column, Action } from "../../../components/global";
 import AccreditationFunctionsModal from "./AccreditationFunctionsModal";
+import AccreditationImportPanel from "./AccreditationImportPanel";
 import {
   Plus,
   Mail,
@@ -31,6 +32,8 @@ export default function Accreditations() {
 
   const [accreditations, setAccreditations] = useState<Accreditation[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  // Toutes les activités sont cochées par défaut dans les formulaires
+  const allActivityIds = activities.map((act) => act.id || (act as any).activity_id);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ type: "success" | "warning"; text: string } | null>(null);
@@ -44,7 +47,9 @@ export default function Accreditations() {
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPreValidationModal, setShowPreValidationModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<"single" | "batch">("single");
+  const [activeTab, setActiveTab] = useState<"single" | "batch" | "import">("single");
+  const [preValidationTab, setPreValidationTab] = useState<"single" | "import">("single");
+  const [importFailures, setImportFailures] = useState<AccreditationImportFailure[]>([]);
 
   const [isCreating, setIsCreating] = useState(false);
   const [isCreatingPreValidation, setIsCreatingPreValidation] = useState(false);
@@ -107,6 +112,7 @@ export default function Accreditations() {
       loadAccreditations();
       loadActivities();
       loadFunctions();
+      loadImportFailures();
     }
   }, [eventIdNum]);
 
@@ -124,6 +130,42 @@ export default function Accreditations() {
       console.error("Error loading functions:", err);
       setError("Erreur lors du chargement des fonctions");
     }
+  };
+
+  const loadImportFailures = async () => {
+    try {
+      setImportFailures(await accreditationImportFailuresAPI.getAll(eventIdNum));
+    } catch (err) {
+      console.error("Error loading import failures:", err);
+    }
+  };
+
+  const handleRetryImportFailure = async (failure: AccreditationImportFailure) => {
+    try {
+      setError(null);
+      await accreditationImportFailuresAPI.retry(failure.id);
+      setNotice({ type: "success", text: "Accréditation créée avec succès" });
+      await loadAccreditations();
+    } catch (err: any) {
+      console.error("Erreur nouvelle tentative:", err);
+      setError(err?.response?.data?.message || "La nouvelle tentative a échoué");
+    } finally {
+      await loadImportFailures();
+    }
+  };
+
+  const handleDeleteImportFailure = async (failure: AccreditationImportFailure) => {
+    try {
+      await accreditationImportFailuresAPI.delete(failure.id);
+      await loadImportFailures();
+    } catch (err) {
+      console.error("Erreur suppression échec d'import:", err);
+      setError("Impossible de supprimer cette ligne");
+    }
+  };
+
+  const handleImportFinished = async () => {
+    await Promise.all([loadAccreditations(), loadImportFailures()]);
   };
 
   const loadAccreditations = async () => {
@@ -307,7 +349,7 @@ export default function Accreditations() {
         phone: "",
         function_id: "",
         organization: "",
-        activity_ids: [],
+        activity_ids: allActivityIds,
       });
       setPhotoFile(null);
       setPhotoPreview(null);
@@ -348,7 +390,7 @@ export default function Accreditations() {
         function_id: "",
         organization: "",
         quantity: 10,
-        activity_ids: [],
+        activity_ids: allActivityIds,
       });
       setModalError(null);
       await loadAccreditations();
@@ -393,7 +435,7 @@ export default function Accreditations() {
         phone: "",
         function_id: "",
         organization: "",
-        activity_ids: [],
+        activity_ids: allActivityIds,
       });
       setModalError(null);
       await loadAccreditations();
@@ -872,6 +914,12 @@ export default function Accreditations() {
             <button
               onClick={() => {
                 setActiveTab("single");
+                setBatchFormData({
+                  function_id: "",
+                  organization: "",
+                  quantity: 10,
+                  activity_ids: allActivityIds,
+                });
                 setFormData({
                   first_name: "",
                   last_name: "",
@@ -879,7 +927,7 @@ export default function Accreditations() {
                   phone: "",
                   function_id: "",
                   organization: "",
-                  activity_ids: [],
+                  activity_ids: allActivityIds,
                 });
                 setPhotoFile(null);
                 setPhotoPreview(null);
@@ -901,8 +949,9 @@ export default function Accreditations() {
                   phone: "",
                   function_id: "",
                   organization: "",
-                  activity_ids: [],
+                  activity_ids: allActivityIds,
                 });
+                setPreValidationTab("single");
                 setModalError(null);
                 setShowPreValidationModal(true);
               }}
@@ -950,6 +999,52 @@ export default function Accreditations() {
           onChanged={loadFunctions}
           onClose={() => setShowFunctionsModal(false)}
         />
+      )}
+
+      {/* Lignes d'import en échec */}
+      {importFailures.some((failure) => failure.type === (mainTab === "direct" ? "direct" : "pre_validation")) && (
+        <div className="bg-white rounded-lg shadow-sm border border-red-200 mb-4">
+          <div className="px-5 py-3 border-b border-red-100">
+            <h3 className="text-sm font-semibold text-red-700">Échecs d'importation</h3>
+            <p className="text-xs text-gray-500">Ces lignes n'ont pas pu être créées. Une nouvelle tentative se fait sans photo.</p>
+          </div>
+          <DataTable
+            columns={[
+              {
+                key: "first_name",
+                label: "NOM",
+                render: (_, failure) => (
+                  <span className="text-sm">{`${failure.first_name || ""} ${failure.last_name || ""}`.trim() || "-"}</span>
+                ),
+              },
+              {
+                key: "email",
+                label: "EMAIL",
+                render: (_, failure) => <span className="text-sm text-gray-600">{failure.email || "-"}</span>,
+              },
+              {
+                key: "function_id",
+                label: "FONCTION",
+                render: (_, failure) => <span className="text-sm text-gray-600">{failure.badge_function?.name || "-"}</span>,
+              },
+              {
+                key: "error_message",
+                label: "ERREUR",
+                render: (_, failure) => (
+                  <span className="text-sm text-red-600" title={failure.error_message}>
+                    {failure.error_message.length > 60 ? `${failure.error_message.substring(0, 60)}...` : failure.error_message}
+                  </span>
+                ),
+              },
+            ] as Column<AccreditationImportFailure>[]}
+            data={importFailures.filter((failure) => failure.type === (mainTab === "direct" ? "direct" : "pre_validation"))}
+            actions={[
+              { label: "Réessayer", icon: RefreshCw, onClick: handleRetryImportFailure },
+              { label: "Supprimer", icon: Trash2, onClick: handleDeleteImportFailure },
+            ] as Action<AccreditationImportFailure>[]}
+            emptyMessage="Aucun échec d'importation"
+          />
+        </div>
       )}
 
       {/* Tableau des accréditations */}
@@ -1024,9 +1119,30 @@ export default function Accreditations() {
               >
                 Non Nominative
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("import")}
+                className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                  activeTab === "import"
+                    ? "border-[#36CC76] text-[#36CC76]"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Import Excel
+              </button>
             </div>
 
-            {activeTab === "single" ? (
+            {activeTab === "import" ? (
+              <AccreditationImportPanel
+                eventId={eventIdNum}
+                type="direct"
+                functions={functions}
+                activities={activities}
+                preparePhoto={compressImageIfNeeded}
+                onManageFunctions={() => setShowFunctionsModal(true)}
+                onFinished={handleImportFinished}
+              />
+            ) : activeTab === "single" ? (
               <form onSubmit={handleCreateDirectAccreditation} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -1380,6 +1496,31 @@ export default function Accreditations() {
               </div>
             )}
 
+            <div className="flex gap-2 mb-4 border-b border-gray-200">
+              <button
+                type="button"
+                onClick={() => setPreValidationTab("single")}
+                className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                  preValidationTab === "single"
+                    ? "border-[#4A94E3] text-[#4A94E3]"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Individuelle
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreValidationTab("import")}
+                className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                  preValidationTab === "import"
+                    ? "border-[#4A94E3] text-[#4A94E3]"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Import Excel
+              </button>
+            </div>
+
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 mb-4">
               <p className="font-semibold mb-1">Processus de validation</p>
               <p>
@@ -1388,6 +1529,17 @@ export default function Accreditations() {
               </p>
             </div>
 
+            {preValidationTab === "import" ? (
+              <AccreditationImportPanel
+                eventId={eventIdNum}
+                type="pre_validation"
+                functions={functions}
+                activities={activities}
+                preparePhoto={compressImageIfNeeded}
+                onManageFunctions={() => setShowFunctionsModal(true)}
+                onFinished={handleImportFinished}
+              />
+            ) : (
             <form onSubmit={handleCreatePreValidation} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -1546,6 +1698,7 @@ export default function Accreditations() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

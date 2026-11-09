@@ -969,3 +969,85 @@ export interface ResendInvitationNotificationsResponse {
     whatsapp?: { sent: boolean; to: string; error?: string };
   };
 }
+
+// Types pour les accréditations
+export interface Accreditation {
+  id: number;
+  badge_number: string;
+  event_id: number;
+  format: "nominative" | "non_nominative";
+  type: "direct" | "pre_validation" | "batch";
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  role_title: string | null;
+  function_id: number | null;
+  photo_url: string | null;
+  organization: string | null;
+  batch_title: string | null;
+  batch_id: string | null;
+  email_sent?: boolean | null;
+  status: "pending_confirmation" | "confirmed" | "rejected" | "generated" | "sent";
+  confirmed_at: string | null;
+  generated_at: string | null;
+  sent_at: string | null;
+  confirmation_token: string | null;
+  confirmation_token_expires_at: string | null;
+  qr_code: string | null;
+  pdf_url: string | null;
+  is_used?: number;
+  created_at: string;
+  updated_at: string;
+  event?: Event;
+  activities?: Activity[];
+  verifications?: Array<{
+    id: number;
+    accreditation_id: number;
+    status: string;
+    date_verif: string;
+  }>;
+}
+
+export interface AccreditationFunction {
+  id: number;
+  event_id: number;
+  name: string;
+  template_path: string | null;
+  template_url: string | null;
+  text_color: "auto" | "white" | "black";
+  detected_text_color: "white" | "black" | null;
+  resolved_text_color: "white" | "black";
+  accreditations_count?: number;
+}
+
+export interface CreateDirectAccreditationData {
+  event_id: number;
+  first_name: string;
+  last_name: string;
+  email?: string;
+  phone?: string;
+  function_id: number;
+  organization?: string;
+  activity_ids?: number[];
+  photo?: File;
+}
+
+export interface CreatePreValidationAccreditationData {
+  event_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  function_id: number;
+  organization?: string;
+  activity_ids?: number[];
+}
+
+export interface CreateBatchAccreditationData {
+  event_id: number;
+  function_id: number;
+  organization?: string;
+  quantity: number;
+  activity_ids?: number[];
+}

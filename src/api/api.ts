@@ -81,6 +81,12 @@ import type {
   CreateBatchInvitationData,
   ResendInvitationNotificationsData,
   ResendInvitationNotificationsResponse,
+  // Accreditation types
+  Accreditation,
+  AccreditationFunction,
+  CreateDirectAccreditationData,
+  CreatePreValidationAccreditationData,
+  CreateBatchAccreditationData,
 } from "../lib/types";
 import type {
   DeliveryPoint,
@@ -110,6 +116,11 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem("tyva_token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  // Pour FormData, supprimer le Content-Type par défaut pour laisser le navigateur définir multipart/form-data avec le bon boundary
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
   }
 
   const readOnly = env.ORGA_READ_ONLY;
@@ -2844,6 +2855,203 @@ export const importFailuresAPI = {
   retry: async (id: number): Promise<{ message: string }> => {
     const response = await api.post(`/import-failures/${id}/retry`);
     return response.data;
+  },
+};
+
+// Services API pour les fonctions d'accréditation
+export const accreditationFunctionsAPI = {
+  getAll: async (eventId: number): Promise<AccreditationFunction[]> => {
+    const response = await api.get<ApiResponse<AccreditationFunction[]>>("/accreditation-functions", {
+      params: { event_id: eventId },
+    });
+    return response.data.data;
+  },
+
+  create: async (data: FormData): Promise<AccreditationFunction> => {
+    const response = await api.post<ApiResponse<AccreditationFunction>>("/accreditation-functions", data);
+    return response.data.data;
+  },
+
+  // POST : un fichier ne peut pas être envoyé en multipart avec PUT
+  update: async (id: number, data: FormData): Promise<AccreditationFunction> => {
+    const response = await api.post<ApiResponse<AccreditationFunction>>(`/accreditation-functions/${id}`, data);
+    return response.data.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/accreditation-functions/${id}`);
+  },
+};
+
+// Services API pour les accréditations
+export const accreditationsAPI = {
+  // Récupérer la liste des accréditations
+  getAll: async (params?: {
+    event_id?: number;
+    format?: "nominative" | "non_nominative";
+    type?: "direct" | "pre_validation" | "batch";
+    status?: string;
+    search?: string;
+  }): Promise<Accreditation[]> => {
+    const response = await api.get<ApiResponse<Accreditation[]>>("/accreditations", {
+      params,
+    });
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de récupérer les accréditations",
+      );
+    }
+  },
+
+  // Récupérer une accréditation par ID
+  getById: async (id: number): Promise<Accreditation> => {
+    const response = await api.get<ApiResponse<Accreditation>>(`/accreditations/${id}`);
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de récupérer l'accréditation",
+      );
+    }
+  },
+
+  // Créer une accréditation directe (nominative) avec support photo
+  createDirect: async (
+    data: FormData | CreateDirectAccreditationData,
+  ): Promise<Accreditation> => {
+    let body: any = data;
+    if (!(data instanceof FormData)) {
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (key === "activity_ids" && Array.isArray(value)) {
+            value.forEach((actId) => formData.append("activity_ids[]", String(actId)));
+          } else {
+            formData.append(key, value as any);
+          }
+        }
+      });
+      body = formData;
+    }
+    const response = await api.post<ApiResponse<Accreditation>>(
+      "/accreditations/direct",
+      body,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de créer l'accréditation directe",
+      );
+    }
+  },
+
+  // Créer une accréditation avec pré-validation
+  createPreValidation: async (
+    data: CreatePreValidationAccreditationData,
+  ): Promise<Accreditation> => {
+    const response = await api.post<ApiResponse<Accreditation>>(
+      "/accreditations/pre-validation",
+      data,
+    );
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de créer l'accréditation avec pré-validation",
+      );
+    }
+  },
+
+  // Créer un lot d'accréditations non nominatives
+  createBatch: async (
+    data: CreateBatchAccreditationData,
+  ): Promise<Accreditation[]> => {
+    const response = await api.post<ApiResponse<Accreditation[]>>(
+      "/accreditations/batch",
+      data,
+    );
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de créer le lot d'accréditations",
+      );
+    }
+  },
+
+  // Télécharger le badge unitaire (PDF)
+  downloadBadge: async (id: number): Promise<Blob> => {
+    const response = await api.get(`/accreditations/${id}/badge-pdf`, {
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  // Télécharger le lot de badges (ZIP)
+  downloadBatch: async (batchId: string): Promise<Blob> => {
+    const response = await api.get("/accreditations/download-batch", {
+      params: {
+        batch_id: batchId,
+      },
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  // Renvoyer l'e-mail (lien de validation ou badge) et retourner le message de l'API
+  resend: async (id: number): Promise<string> => {
+    const response = await api.post<ApiResponse<Accreditation>>(`/accreditations/${id}/resend`);
+    if (response.data.success) {
+      return response.data.message || "E-mail renvoyé";
+    } else {
+      throw new Error(response.data.message || "Impossible de renvoyer l'e-mail");
+    }
+  },
+
+  // Supprimer une accréditation
+  delete: async (id: number): Promise<void> => {
+    const response = await api.delete<ApiResponse<void>>(`/accreditations/${id}`);
+    if (!response.data.success) {
+      throw new Error(
+        response.data.message || "Impossible de supprimer l'accréditation",
+      );
+    }
+  },
+
+  // Confirmer une accréditation (route publique)
+  confirm: async (token: string, data?: FormData): Promise<Accreditation> => {
+    const response = await api.post<ApiResponse<Accreditation>>(
+      `/accreditations/confirm/${token}`,
+      data || {},
+      {
+        headers: data ? { "Content-Type": "multipart/form-data" } : {},
+      }
+    );
+    if (response.data.success) {
+      return response.data.data;
+    } else {
+      throw new Error(
+        response.data.message || "Impossible de confirmer l'accréditation",
+      );
+    }
+  },
+
+  // Refuser une accréditation (route publique)
+  reject: async (token: string): Promise<void> => {
+    const response = await api.get<ApiResponse<void>>(`/accreditations/reject/${token}`);
+    if (!response.data.success) {
+      throw new Error(
+        response.data.message || "Impossible de refuser l'accréditation",
+      );
+    }
   },
 };
 

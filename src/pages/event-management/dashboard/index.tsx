@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAppSelector } from "../../../store/store";
 import { Ticket, Package, ShoppingCart, TrendingUp, MapPin } from "lucide-react";
-import { statisticsAPI, invitationsAPI, importFailuresAPI } from "../../../api/api";
+import { statisticsAPI, invitationsAPI, importFailuresAPI, accreditationsAPI } from "../../../api/api";
 
 const Tooltip: React.FC<{ children: React.ReactNode; content: string }> = ({ children, content }) => {
   return (
@@ -22,6 +22,7 @@ const EventDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [invitations, setInvitations] = useState<any[]>([]);
   const [dbImportFailures, setDbImportFailures] = useState<any[]>([]);
+  const [accreditations, setAccreditations] = useState<any[]>([]);
 
   const isUnlimitedValue = (value: unknown) => {
     if (value === null || value === undefined) return true;
@@ -95,6 +96,15 @@ const EventDashboard: React.FC = () => {
       })
       .catch((err) => {
         console.error("Erreur lors du chargement des échecs d'importation:", err);
+      });
+
+    // Charger les accréditations
+    accreditationsAPI.getAll({ event_id: currentEvent.event_id })
+      .then((data) => {
+        setAccreditations(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.error("Erreur lors du chargement des accréditations:", err);
       });
   }, [currentEvent]);
 
@@ -476,6 +486,207 @@ const EventDashboard: React.FC = () => {
                 </span>
                 <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
                   Présents: {invitations.filter((inv) => inv.type === "pre_validation" && ((inv.is_used && inv.is_used > 0) || (inv.verifications && inv.verifications.length > 0))).length}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Statistiques accréditations */}
+      <section className="py-1 md:py-2">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="w-1.5 h-6 rounded bg-[#023c40] block" />
+          <h2 className="text-xl font-semibold text-[#023c40] tracking-tight">
+            Accréditations
+          </h2>
+        </div>
+
+        {/* Niveau 1 : Totaux */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+          <Tooltip content="Nombre total d'accréditations créées">
+            <div className="bg-white rounded-xl shadow p-4 flex flex-col border border-gray-100 min-h-[80px]">
+              <span className="text-xs text-gray-500 font-medium mb-1">
+                Total Accréditations
+              </span>
+              <span className="text-xl font-bold text-gray-900">
+                {accreditations.length}
+              </span>
+            </div>
+          </Tooltip>
+
+          <Tooltip content="Accréditations nominatives directes">
+            <div className="bg-white rounded-xl shadow p-4 flex flex-col border border-gray-100 min-h-[80px]">
+              <span className="text-xs text-gray-500 font-medium mb-1">
+                Nominatives
+              </span>
+              <span className="text-xl font-bold text-blue-600">
+                {accreditations.filter((acc) => acc.format === "nominative").length}
+              </span>
+            </div>
+          </Tooltip>
+
+          <Tooltip content="Badges de lots anonymes (sécurité, régie, etc.)">
+            <div className="bg-white rounded-xl shadow p-4 flex flex-col border border-gray-100 min-h-[80px]">
+              <span className="text-xs text-gray-500 font-medium mb-1">
+                Lots (Non nominatifs)
+              </span>
+              <span className="text-xl font-bold text-purple-600">
+                {accreditations.filter((acc) => acc.format === "non_nominative").length}
+              </span>
+            </div>
+          </Tooltip>
+
+          <Tooltip content="Nombre d'accrédités scannés à l'entrée (présents sur l'événement)">
+            <div className="bg-white rounded-xl shadow p-4 flex flex-col border border-gray-100 min-h-[80px]">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-500 font-medium">
+                  Accrédités présents
+                </span>
+                {(() => {
+                  const total = accreditations.length;
+                  const presentCount = accreditations.filter(
+                    (acc) =>
+                      (acc.is_used && acc.is_used > 0) ||
+                      (acc.verifications && acc.verifications.length > 0)
+                  ).length;
+                  const rate = total > 0 ? Math.round((presentCount / total) * 100) : 0;
+                  return total > 0 ? (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                      {rate}%
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+              <span className="text-xl font-bold text-emerald-600">
+                {
+                  accreditations.filter(
+                    (acc) =>
+                      (acc.is_used && acc.is_used > 0) ||
+                      (acc.verifications && acc.verifications.length > 0)
+                  ).length
+                }
+              </span>
+            </div>
+          </Tooltip>
+
+          <Tooltip content="Demandes d'accréditations en attente de confirmation par le destinataire">
+            <div className="bg-white rounded-xl shadow p-4 flex flex-col border border-gray-100 min-h-[80px]">
+              <span className="text-xs text-gray-500 font-medium mb-1">
+                En attente validation
+              </span>
+              <span className="text-xl font-bold text-amber-600">
+                {
+                  accreditations.filter(
+                    (acc) =>
+                      acc.type === "pre_validation" &&
+                      acc.status === "pending_confirmation"
+                  ).length
+                }
+              </span>
+            </div>
+          </Tooltip>
+        </div>
+
+        {/* Répartition par type d'accréditation */}
+        <div className="mt-6">
+          <h3 className="text-xs font-semibold text-[#023c40] mb-2 uppercase tracking-wide flex items-center gap-2">
+            <span className="w-1.5 h-4 rounded bg-[#023c40] block" />
+            Répartition par type
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl p-4 shadow border border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-2 hover:shadow-md transition-shadow">
+              <div className="flex flex-col gap-1">
+                <span className="font-semibold text-[#023c40] text-base">
+                  Accréditation Directe & Lots :{" "}
+                  {
+                    accreditations.filter(
+                      (acc) => acc.type === "direct" || acc.type === "batch"
+                    ).length
+                  }
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center text-xs">
+                <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                  Nominatives:{" "}
+                  {
+                    accreditations.filter(
+                      (acc) => acc.type === "direct" && acc.format === "nominative"
+                    ).length
+                  }
+                </span>
+                <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
+                  Lots anonymes:{" "}
+                  {
+                    accreditations.filter(
+                      (acc) => acc.type === "batch" || acc.format === "non_nominative"
+                    ).length
+                  }
+                </span>
+                <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
+                  Présents:{" "}
+                  {
+                    accreditations.filter(
+                      (acc) =>
+                        (acc.type === "direct" || acc.type === "batch") &&
+                        ((acc.is_used && acc.is_used > 0) ||
+                          (acc.verifications && acc.verifications.length > 0))
+                    ).length
+                  }
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 shadow border border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-2 hover:shadow-md transition-shadow">
+              <div className="flex flex-col gap-1">
+                <span className="font-semibold text-[#023c40] text-base">
+                  Pré-validations :{" "}
+                  {
+                    accreditations.filter((acc) => acc.type === "pre_validation")
+                      .length
+                  }
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center text-xs">
+                <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-semibold">
+                  En attente:{" "}
+                  {
+                    accreditations.filter(
+                      (acc) =>
+                        acc.type === "pre_validation" &&
+                        acc.status === "pending_confirmation"
+                    ).length
+                  }
+                </span>
+                <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
+                  Validés:{" "}
+                  {
+                    accreditations.filter(
+                      (acc) =>
+                        acc.type === "pre_validation" &&
+                        (acc.status === "confirmed" || acc.status === "sent")
+                    ).length
+                  }
+                </span>
+                <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded-full font-semibold">
+                  Rejetés:{" "}
+                  {
+                    accreditations.filter(
+                      (acc) =>
+                        acc.type === "pre_validation" && acc.status === "rejected"
+                    ).length
+                  }
+                </span>
+                <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
+                  Présents:{" "}
+                  {
+                    accreditations.filter(
+                      (acc) =>
+                        acc.type === "pre_validation" &&
+                        ((acc.is_used && acc.is_used > 0) ||
+                          (acc.verifications && acc.verifications.length > 0))
+                    ).length
+                  }
                 </span>
               </div>
             </div>

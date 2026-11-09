@@ -13,6 +13,7 @@ import Login from "./pages/auth/login";
 import EventDashboard from "./pages/event-management/dashboard/index";
 import EventUsersIndex from "./pages/event-management/users";
 import Invitations from "./pages/event-management/invitations/index";
+import Accreditations from "./pages/event-management/accreditations/index";
 import { eventsAPI } from "./api";
 import {
   useAppDispatch,
@@ -384,6 +385,16 @@ function App() {
             <ProtectedRoute>
               <EventManagementLayout>
                 <Invitations />
+              </EventManagementLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/gestion-evenement/:eventId/accreditations"
+          element={
+            <ProtectedRoute>
+              <EventManagementLayout>
+                <Accreditations />
               </EventManagementLayout>
             </ProtectedRoute>
           }

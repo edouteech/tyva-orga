@@ -18,6 +18,7 @@ import {
   Users,
   LogOut,
   Mail,
+  BadgeCheck,
 } from "lucide-react";
 
 interface EventManagementLayoutProps {
@@ -245,6 +246,11 @@ const EventManagementLayout: React.FC<EventManagementLayoutProps> = ({
       path: getEventManagementUrl(currentEvent, "invitations"),
       label: "Invitations",
       icon: Mail,
+    },
+    {
+      path: getEventManagementUrl(currentEvent, "accreditations"),
+      label: "Accréditations",
+      icon: BadgeCheck,
     },
   ];
 

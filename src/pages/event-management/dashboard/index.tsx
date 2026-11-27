@@ -458,10 +458,10 @@ const EventDashboard: React.FC = () => {
               </div>
               <div className="flex flex-wrap gap-2 items-center text-xs">
                 <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
-                  Identifiable: {invitations.filter((inv) => inv.type === "instant").length}
+                  Nominatif: {invitations.filter((inv) => inv.type === "instant").length}
                 </span>
                 <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
-                  Non identifiable: {invitations.filter((inv) => inv.type === "batch").length}
+                  Non nominatif: {invitations.filter((inv) => inv.type === "batch").length}
                 </span>
                 <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
                   Présents: {invitations.filter((inv) => (inv.type === "instant" || inv.type === "batch") && ((inv.is_used && inv.is_used > 0) || (inv.verifications && inv.verifications.length > 0))).length}

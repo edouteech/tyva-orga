@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import { FileSpreadsheet, Image as ImageIcon } from "lucide-react";
 import { accreditationImportFailuresAPI, accreditationsAPI } from "../../../api/api";
@@ -14,6 +14,7 @@ interface AccreditationImportPanelProps {
   functions: AccreditationFunction[];
   activities: Activity[];
   preparePhoto: (file: File) => Promise<{ file: File }>;
+  noActivitiesNotice: React.ReactNode;
   onManageFunctions: () => void;
   onFinished: () => Promise<void>;
 }
@@ -60,6 +61,7 @@ export default function AccreditationImportPanel({
   functions,
   activities,
   preparePhoto,
+  noActivitiesNotice,
   onManageFunctions,
   onFinished,
 }: AccreditationImportPanelProps) {
@@ -72,6 +74,11 @@ export default function AccreditationImportPanel({
   const [photos, setPhotos] = useState<Map<string, File>>(new Map());
   const [progress, setProgress] = useState<number | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
+
+  // Si les activités arrivent après l'ouverture de l'écran, elles sont toutes cochées
+  useEffect(() => {
+    setActivityIds((current) => (current.length ? current : activities.map(activityIdOf)));
+  }, [activities]);
 
   const isImporting = progress !== null;
   const missingPhotos = isDirect
@@ -260,7 +267,7 @@ export default function AccreditationImportPanel({
         </button>
       </div>
 
-      {activities.length > 0 && (
+      {activities.length === 0 ? noActivitiesNotice : (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Activités autorisées *</label>
           <div className="border border-gray-200 rounded-xl p-4 max-h-40 overflow-y-auto space-y-2 bg-white">
@@ -343,7 +350,7 @@ export default function AccreditationImportPanel({
       )}
 
       {missingPhotos.length > 0 && (
-        <div className="bg-amber-50 border border-amber-300 text-amber-800 px-3 py-2 rounded-lg text-xs">
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-xs">
           <p className="font-semibold mb-1">{missingPhotos.length} photo(s) introuvable(s) : ces badges seront créés sans photo.</p>
           <p className="break-words">{missingPhotos.join(", ")}</p>
         </div>
@@ -361,7 +368,7 @@ export default function AccreditationImportPanel({
             Import terminé : {result.success} réussie(s), {result.failures.length} en échec
           </p>
           {result.emailsNotSent > 0 && (
-            <p className="text-amber-700">
+            <p className="text-yellow-700">
               {result.emailsNotSent} e-mail(s) n'ont pas pu partir. Utilisez l'action « Renvoyer l'e-mail ».
             </p>
           )}

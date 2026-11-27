@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useAppSelector } from "../../../store/store";
 import { accreditationsAPI, accreditationFunctionsAPI, accreditationImportFailuresAPI, activitiesAPI } from "../../../api/api";
 import type { Accreditation, AccreditationFunction, AccreditationImportFailure, Activity } from "../../../lib/types";
@@ -187,7 +187,14 @@ export default function Accreditations() {
     try {
       if (!eventIdNum) return;
       const data = await activitiesAPI.getByEventId(eventIdNum);
-      setActivities(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setActivities(list);
+
+      // Un formulaire ouvert avant la fin du chargement reçoit aussi toutes les activités
+      const ids = list.map((act) => act.id || (act as any).activity_id);
+      setFormData((prev) => (prev.activity_ids.length ? prev : { ...prev, activity_ids: ids }));
+      setBatchFormData((prev) => (prev.activity_ids.length ? prev : { ...prev, activity_ids: ids }));
+      setPreValidationFormData((prev) => (prev.activity_ids.length ? prev : { ...prev, activity_ids: ids }));
     } catch (err) {
       console.error("Erreur chargement des activités:", err);
       setActivities([]);
@@ -755,6 +762,22 @@ export default function Accreditations() {
     },
   ];
 
+  // Sans activité, aucun accès ne peut être donné : on l'explique au lieu de masquer le bloc
+  const noActivitiesNotice = (
+    <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg text-sm">
+      <p className="font-semibold">Cet événement n'a encore aucune activité.</p>
+      <p className="mt-1">
+        Une accréditation donne accès à des activités : créez-en au moins une avant de générer des badges.
+      </p>
+      <Link
+        to={`/gestion-evenement/${eventId}/activites`}
+        className="inline-block mt-2 font-semibold text-[#023C40] underline hover:no-underline"
+      >
+        Créer une activité
+      </Link>
+    </div>
+  );
+
   const renderFunctionSelect = (value: string, onChange: (value: string) => void) => (
     <>
       <select
@@ -968,13 +991,13 @@ export default function Accreditations() {
         <div
           role="status"
           className={`fixed top-4 right-4 z-[80] w-[calc(100%-2rem)] max-w-sm flex items-start gap-3 px-4 py-3 rounded-lg shadow-lg border bg-white text-sm ${
-            notice.type === "success" ? "border-green-200 text-green-800" : "border-amber-300 text-amber-800"
+            notice.type === "success" ? "border-green-200 text-green-800" : "border-yellow-200 text-yellow-700"
           }`}
         >
           {notice.type === "success" ? (
             <CheckCircle className="w-5 h-5 shrink-0 text-green-600" />
           ) : (
-            <AlertCircle className="w-5 h-5 shrink-0 text-amber-600" />
+            <AlertCircle className="w-5 h-5 shrink-0 text-yellow-600" />
           )}
           <span className="flex-1">{notice.text}</span>
           <button onClick={() => setNotice(null)} className="text-gray-400 hover:text-gray-600" aria-label="Fermer">
@@ -1139,6 +1162,7 @@ export default function Accreditations() {
                 functions={functions}
                 activities={activities}
                 preparePhoto={compressImageIfNeeded}
+                noActivitiesNotice={noActivitiesNotice}
                 onManageFunctions={() => setShowFunctionsModal(true)}
                 onFinished={handleImportFinished}
               />
@@ -1301,7 +1325,7 @@ export default function Accreditations() {
                 </div>
 
                 {/* Activités autorisées */}
-                {activities.length > 0 && (
+                {activities.length === 0 ? noActivitiesNotice : (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Activités autorisées
@@ -1405,7 +1429,7 @@ export default function Accreditations() {
                   </div>
                 </div>
 
-                {activities.length > 0 && (
+                {activities.length === 0 ? noActivitiesNotice : (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Activités autorisées
@@ -1536,6 +1560,7 @@ export default function Accreditations() {
                 functions={functions}
                 activities={activities}
                 preparePhoto={compressImageIfNeeded}
+                noActivitiesNotice={noActivitiesNotice}
                 onManageFunctions={() => setShowFunctionsModal(true)}
                 onFinished={handleImportFinished}
               />
@@ -1646,7 +1671,7 @@ export default function Accreditations() {
                 </div>
               </div>
 
-              {activities.length > 0 && (
+              {activities.length === 0 ? noActivitiesNotice : (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Activités autorisées

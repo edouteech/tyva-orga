@@ -598,7 +598,7 @@ const EventDashboard: React.FC = () => {
             <div className="bg-white rounded-xl p-4 shadow border border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-2 hover:shadow-md transition-shadow">
               <div className="flex flex-col gap-1">
                 <span className="font-semibold text-[#023c40] text-base">
-                  Accréditation Directe & Lots :{" "}
+                  Accréditation Directe :{" "}
                   {
                     accreditations.filter(
                       (acc) => acc.type === "direct" || acc.type === "batch"
@@ -616,7 +616,7 @@ const EventDashboard: React.FC = () => {
                   }
                 </span>
                 <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
-                  Lots anonymes:{" "}
+                  Non nominatives:{" "}
                   {
                     accreditations.filter(
                       (acc) => acc.type === "batch" || acc.format === "non_nominative"
